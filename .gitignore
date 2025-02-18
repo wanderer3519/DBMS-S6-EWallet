@@ -1,0 +1,3 @@
+dbms-project/venv/
+dbms-project/__pycache__/
+*.env
