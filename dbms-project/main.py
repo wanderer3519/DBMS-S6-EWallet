@@ -67,7 +67,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Generate JWT token
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_access_token(data={"sub": user.id})
     return {"access_token": access_token, "token_type": "bearer"}
 
 

@@ -35,17 +35,17 @@ const Register = () => {
 
         <div>
           <strong> Username: </strong>
-          <input type="text" className="form-control" placeholder="Your Username" aria-label="Username" aria-describedby="basic-addon1" onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your Username" aria-label="Username" aria-describedby="basic-addon1" name='username' onChange={handleChange} />
         </div>
 
         <div>
           <strong> Email: </strong>
-          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" name='email' onChange={handleChange} />
         </div>
 
         <div>
           <strong> Password: </strong>
-          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" name='password' onChange={handleChange} />
         </div>
 
         <div>

@@ -1,4 +1,4 @@
-import Home from './components/Home';
+import Dashboard from './components/Dashboard';
 import NoPage from './components/NoPage';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -15,9 +15,9 @@ function App() {
           </div>
         }/>
 
-        <Route path='/home' element={
+        <Route path='/dashboard' element={
           <div className='container-fluid m-2'>
-            <Home />
+            <Dashboard />
           </div>
         } />
         

@@ -23,7 +23,7 @@ const Login = () => {
     try {
       const data = await loginUser(formData);
       localStorage.setItem("token", data.access_token); // Store token
-      navigate("/home"); // Redirect after login
+      navigate("/dashboard"); // Redirect after login
     } catch (err) {
       setError(err.detail || "Login failed");
     }
@@ -38,12 +38,12 @@ const Login = () => {
 
         <div>
           <strong> Username: </strong>
-          <input type="text" className="form-control" placeholder="Your Username" aria-label="Username" aria-describedby="basic-addon1" onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your Username" aria-label="Username" aria-describedby="basic-addon1" name='username' onChange={handleChange} />
         </div>
 
         <div>
           <strong> Password: </strong>
-          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" name='password' onChange={handleChange} />
         </div>
 
         <div>
