@@ -9,23 +9,23 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={(
+        <Route path="/" element={
           <div className='container-fluid m-2'>
             <Login />
           </div>
-        )}/>
+        }/>
 
-        <Route path='/home' element={(
+        <Route path='/home' element={
           <div className='container-fluid m-2'>
             <Home />
           </div>
-        )} />
+        } />
         
-        <Route path='/register' element={(
+        <Route path='/register' element={
           <div className='container-fluid m-2'>
             <Register />
           </div>
-        )} />
+        } />
         
         <Route path="*" element={
           <div className='container-fluid m-2'>

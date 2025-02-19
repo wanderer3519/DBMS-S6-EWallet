@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState } from 'react';
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useNavigate } from "react-router-dom";
+import { loginUser } from '../api/auth';
 
 const Login = () => {
     const [formData, setFormData] = useState({
@@ -16,12 +17,28 @@ const Login = () => {
         }));
     }
 
+    const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const data = await loginUser(formData);
+      localStorage.setItem("token", data.access_token); // Store token
+      navigate("/dashboard"); // Redirect after login
+    } catch (err) {
+      setError(err.detail || "Login failed");
+    }
+  };
+
   return (
     <div className='card m-2'>
         
 
         <div className="card-body d-flex flex-column">
-            <div>
+            {/* <div>
                 <strong> Username: </strong>
                 <input type="text" class="form-control" placeholder="Your Username" aria-label="Username" aria-describedby="basic-addon1" value={formData.username} onChange={handleChange}/>
             </div>
@@ -34,10 +51,18 @@ const Login = () => {
 
             <div>
                  <Link to="/register"> Not registered? Sign up </Link>
-            </div>
+            </div> */}
+            <h2>Login</h2>
+            {error && <p style={{ color: "red" }}>{error}</p>}
+            <form onSubmit={handleSubmit}>
+                <input type="text" name="username" placeholder="Username" onChange={handleChange} required />
+                <input type="password" name="password" placeholder="Password" onChange={handleChange} required />
+                <button type="submit">Login</button>
+            </form>
+
         </div>
 
-        <Outlet/>
+        {/* <Outlet/> */}
     </div>
   )
 }
