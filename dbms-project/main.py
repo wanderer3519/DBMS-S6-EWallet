@@ -1,8 +1,10 @@
 from fastapi import FastAPI,  Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer
-from auth import hash_password, verify_password, create_access_token
+from fastapi.middleware.cors import CORSMiddleware
 
+
+from auth import hash_password, verify_password, create_access_token
 from database import engine, Sessionlocal
 from models import *
 from schemas import *
@@ -12,6 +14,14 @@ Base.metadata.create_all(bind = engine)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change this to ["http://localhost:3000"] for security
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
     db = Sessionlocal()
