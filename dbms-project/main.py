@@ -103,8 +103,8 @@ def get_wallet_balance(user_id: int, db: Session = Depends(get_db)):
 
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import engine, Base, get_db
-from models import User, Account
+# from database import engine, Base, get_db
+from models import *
 from pydantic import BaseModel
 from sqlalchemy.sql import text
 
