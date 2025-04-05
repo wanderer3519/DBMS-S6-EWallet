@@ -5,7 +5,7 @@ import { registerUser } from '../api/auth';
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    username: "",
+    full_name: "",
     email: "",
     password: "",
   });
@@ -34,18 +34,18 @@ const Register = () => {
         {error && <p style={{ color: "red" }}>{error}</p>}
 
         <div>
-          <strong> Username: </strong>
-          <input type="text" className="form-control" placeholder="Your Username" aria-label="Username" aria-describedby="basic-addon1" name='username' onChange={handleChange} />
+          <strong> Full Name: </strong>
+          <input type="text" className="form-control" placeholder="Your Full name" aria-label="Username" aria-describedby="basic-addon1" name='username' onChange={handleChange} />
         </div>
 
         <div>
           <strong> Email: </strong>
-          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" name='email' onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your email" aria-label="email" aria-describedby="basic-addon1" name='email' onChange={handleChange} />
         </div>
 
         <div>
           <strong> Password: </strong>
-          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" name='password' onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your Password" aria-label="password" aria-describedby="basic-addon1" name='password' onChange={handleChange} />
         </div>
 
         <div>

@@ -1,21 +1,13 @@
-""" from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-
-URL_DATABASE = 'postgresql://postgres:admin.123@localhost:5432/e_wallet_db'
-
-engine = create_engine(URL_DATABASE)
-
-Sessionlocal = sessionmaker(autocommit = False, autoflush = False, bind = engine)
-
-Base = declarative_base() """
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+from os import getenv
+
+load_dotenv()
 
 # PostgreSQL Connection URL
-DATABASE_URL = "postgresql://postgres:admin.123@localhost:5432/ewallet_db2"
+DATABASE_URL = getenv("DATABASE_URL")
 
 # Create database engine
 engine = create_engine(DATABASE_URL)

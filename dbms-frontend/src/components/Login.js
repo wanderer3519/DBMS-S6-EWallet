@@ -5,7 +5,7 @@ import { loginUser } from '../api/auth';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: ""
   });
 
@@ -37,13 +37,13 @@ const Login = () => {
         {error && <p style={{ color: "red" }}>{error}</p>}
 
         <div>
-          <strong> Username: </strong>
-          <input type="text" className="form-control" placeholder="Your Username" aria-label="Username" aria-describedby="basic-addon1" name='username' onChange={handleChange} />
+          <strong> Email: </strong>
+          <input type="text" className="form-control" placeholder="Your Email" aria-label="email" aria-describedby="basic-addon1" name='email' onChange={handleChange} />
         </div>
 
         <div>
           <strong> Password: </strong>
-          <input type="text" className="form-control" placeholder="Your Password" aria-label="Username" aria-describedby="basic-addon1" name='password' onChange={handleChange} />
+          <input type="text" className="form-control" placeholder="Your Password" aria-label="password" aria-describedby="basic-addon1" name='password' onChange={handleChange} />
         </div>
 
         <div>

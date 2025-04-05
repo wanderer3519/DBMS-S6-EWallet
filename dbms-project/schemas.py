@@ -1,12 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 class UserCreate(BaseModel):
-    username: str
-    email: str
+    full_name: str
+    email: EmailStr
     password: str
 
 class UserLogin(BaseModel):
-    username: str
+    email: EmailStr
     password: str
 
 class Token(BaseModel):
@@ -39,3 +39,16 @@ class TransactionResponse(TransactionBase):
 
     class Config:
         orm_mode = True
+
+
+# Pydantic Schemas
+# class UserCreate(BaseModel):
+#     full_name: str
+#     email: str
+#     password_hash: str
+#     role: str
+
+# class TransactionCreate(BaseModel):
+#     account_id: int
+#     transaction_type: str
+#     amount: float

@@ -183,9 +183,10 @@
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DECIMAL, Enum, TIMESTAMP
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
+from database import Base
 import enum
 
-Base = declarative_base()
+# Base = declarative_base()
 
 # Enums
 class UserRole(enum.Enum):
@@ -316,9 +317,9 @@ class OrderItems(Base):
     price = Column(DECIMAL)
 
 # Database connection
-DATABASE_URL = "postgresql://Chakram:postgres@localhost/dbms-testing-1"
+# DATABASE_URL = "postgresql://Chakram:postgres@localhost/dbms-testing-1"
 
-engine = create_engine(DATABASE_URL)
-Base.metadata.create_all(engine)
+# engine = create_engine(DATABASE_URL)
+# Base.metadata.create_all(engine)
 
-print("Database tables created successfully!")
+# print("Database tables created successfully!")
