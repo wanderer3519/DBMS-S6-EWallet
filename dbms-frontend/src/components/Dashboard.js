@@ -1,46 +1,99 @@
-import { useState, React, useEffect } from 'react';
-import axios from "axios";
-import { jwtDecode } from "jwt-decode";
-
-const API_BASE_URL = "http://127.0.0.1:8000";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import './Dashboard.css';
 
 const Dashboard = () => {
-  const [balance, setBalance] = useState(null);
+    const [products, setProducts] = useState([]);
+    const [balance, setBalance] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const navigate = useNavigate();
+    const { user, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          console.error("No token found!");
-          return;
-        }
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!isAuthenticated || !user) {
+                navigate('/login');
+                return;
+            }
 
-        // 🔹 Decode JWT token to extract user_id
-        const decodedToken = jwtDecode(token);
-        const userId = decodedToken.sub; // Ensure the backend sets `sub` as the user_id
+            try {
+                // Fetch balance
+                const balanceResponse = await axios.get('http://localhost:8000/wallet/balance', {
+                    headers: {
+                        'Authorization': `Bearer ${user.access_token}`
+                    }
+                });
+                setBalance(balanceResponse.data.balance);
 
-        console.log("User ID from Token:", userId);
+                // Fetch products
+                const productsResponse = await axios.get('http://localhost:8000/products/', {
+                    headers: {
+                        'Authorization': `Bearer ${user.access_token}`
+                    }
+                });
+                setProducts(productsResponse.data);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                if (error.response?.status === 401) {
+                    navigate('/login');
+                } else {
+                    setError('Failed to load data. Please try again.');
+                }
+                setLoading(false);
+            }
+        };
 
-        const response = await axios.get(`${API_BASE_URL}/wallet/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        fetchData();
+    }, [navigate, user, isAuthenticated]);
 
-        console.log("Wallet data:", response.data);
-        setBalance(response.data.balance);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-      }
-    };
-    fetchBalance();
-  }, []);
+    if (!isAuthenticated) {
+        return null; // Will redirect in useEffect
+    }
 
-  return (
-    <div>
-      <h2>Dashboard</h2>
-      <p>Wallet Balance: {balance !== null ? `$${balance}` : "Loading..."}</p>
-    </div>
-  );
+    return (
+        <div className="dashboard-container">
+            <div className="success-message">
+                <h1>Welcome to E-Wallet!</h1>
+                <p>You have successfully logged in.</p>
+                {balance !== null && (
+                    <div className="balance-display">
+                        <h2>Your Current Balance</h2>
+                        <p className="balance-amount">${balance.toFixed(2)}</p>
+                    </div>
+                )}
+            </div>
+
+            <div className="products-section">
+                <h2>Available Products</h2>
+                {loading ? (
+                    <p>Loading products...</p>
+                ) : error ? (
+                    <p className="error-message">{error}</p>
+                ) : products.length > 0 ? (
+                    <div className="products-grid">
+                        {products.map((product) => (
+                            <div key={product.id} className="product-card">
+                                <img 
+                                    src={product.image_url || 'default-product.png'} 
+                                    alt={product.name}
+                                    className="product-image"
+                                />
+                                <h3>{product.name}</h3>
+                                <p className="product-price">${product.price}</p>
+                                <p className="product-description">{product.description}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p>No products available at the moment.</p>
+                )}
+            </div>
+        </div>
+    );
 };
 
-export default Dashboard
+export default Dashboard;
