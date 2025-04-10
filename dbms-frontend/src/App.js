@@ -1,40 +1,74 @@
-import Dashboard from './components/Dashboard';
-import NoPage from './components/NoPage';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Container } from 'react-bootstrap';
+import Navbar from './components/Navbar';
 import Login from './components/Login';
-import Register from './components/Register';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Signup from './components/Signup';
+import Dashboard from './components/Dashboard';
+import Products from './components/Products';
+import Cart from './components/Cart';
+import Orders from './components/Orders';
+import MerchantDashboard from './components/MerchantDashboard';
+import AdminDashboard from './components/AdminDashboard';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
+const PrivateRoute = ({ children, roles }) => {
+  const { user } = useAuth();
+  const location = useLocation();
+  
+  if (!user) {
+    // Redirect to login while saving the attempted URL
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={
-          <div className='container-fluid m-2'>
-            <Login />
-          </div>
-        }/>
-
-        <Route path='/dashboard' element={
-          <div className='container-fluid m-2'>
-            <Dashboard />
-          </div>
-        } />
-        
-        <Route path='/register' element={
-          <div className='container-fluid m-2'>
-            <Register />
-          </div>
-        } />
-        
-        <Route path="*" element={
-          <div className='container-fluid m-2'>
-            <NoPage />
-          </div>
-        } />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <Router>
+        <Navbar />
+        <Container className="mt-4">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/" element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/products" element={<Products />} />
+            <Route path="/cart" element={
+              <PrivateRoute>
+                <Cart />
+              </PrivateRoute>
+            } />
+            <Route path="/orders" element={
+              <PrivateRoute>
+                <Orders />
+              </PrivateRoute>
+            } />
+            <Route path="/merchant" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/admin" element={
+              <PrivateRoute roles={['admin']}>
+                <AdminDashboard />
+              </PrivateRoute>
+            } />
+          </Routes>
+        </Container>
+      </Router>
+    </AuthProvider>
   );
 }
 
 export default App;
+   
