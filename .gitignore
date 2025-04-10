@@ -1,4 +1,5 @@
 dbms-project/venv/
 dbms-project/__pycache__/
-dbms-project/dbms/
+# dbms-project/dbms/
+dbms-project/comments.txt/
 *.env
