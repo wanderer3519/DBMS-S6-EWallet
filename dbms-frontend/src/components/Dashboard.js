@@ -9,6 +9,8 @@ const Dashboard = () => {
     const [balance, setBalance] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [showBalance, setShowBalance] = useState(false);
+    const [showWelcome, setShowWelcome] = useState(true);
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
 
@@ -20,8 +22,9 @@ const Dashboard = () => {
             }
 
             try {
+                console.log(user.user_id);
                 // Fetch balance
-                const balanceResponse = await axios.get('http://localhost:8000/wallet/balance', {
+                const balanceResponse = await axios.get(`http://localhost:8000/accounts/${user.user_id}`, {
                     headers: {
                         'Authorization': `Bearer ${user.access_token}`
                     }
@@ -50,23 +53,55 @@ const Dashboard = () => {
         fetchData();
     }, [navigate, user, isAuthenticated]);
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowWelcome(false);
+        }, 10000); // 10 seconds
+
+        return () => clearTimeout(timer); // Clean up
+    }, []);
+
     if (!isAuthenticated) {
         return null; // Will redirect in useEffect
     }
 
     return (
         <div className="dashboard-container">
-            <div className="success-message">
-                <h1>Welcome to E-Wallet!</h1>
-                <p>You have successfully logged in.</p>
-                {balance !== null && (
-                    <div className="balance-display">
-                        <h2>Your Current Balance</h2>
-                        <p className="balance-amount">${balance.toFixed(2)}</p>
-                    </div>
-                )}
+            {/* Top Right Balance */}
+            <div className="top-right">
+                <div className="balance-wrapper">
+                    <button
+                        className="balance-toggle"
+                        onClick={() => setShowBalance((prev) => !prev)}
+                        onMouseEnter={() => setShowBalance(true)}
+                        onMouseLeave={() => setShowBalance(false)}
+                    >
+                        💰 Check Balance
+                        {showBalance && balance !== null && (
+                            <div className="balance-popup">
+                                <p
+                                    className="balance-amount"
+                                    style={{
+                                        color: balance < 0 ? 'red' : 'green'
+                                    }}
+                                >
+                                    ${balance?.toFixed ? balance.toFixed(2) : "0.00"}
+                                </p>
+                            </div>
+                        )}
+                    </button>
+                </div>
             </div>
 
+            {/* Welcome Message */}
+            {showWelcome && (
+                <div className="success-message">
+                    <h2>Welcome to E-Wallet!</h2>
+                    <p>You have successfully logged in.</p>
+                </div>
+            )}
+
+            {/* Products Section */}
             <div className="products-section">
                 <h2>Available Products</h2>
                 {loading ? (

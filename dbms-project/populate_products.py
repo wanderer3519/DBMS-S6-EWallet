@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
-from models import User, UserRole, UserStatus, Product, ProductStatus, Merchants
+from models import Users, UserRole, UserStatus, Product, ProductStatus, Merchants
 from auth import get_password_hash
 
 # Sample product data
@@ -13,6 +13,7 @@ sample_products = [
         "price": 699.99,
         "mrp": 799.99,
         "stock": 50,
+        "category": "Electronics",
         "image_url": "products/smartphone.jpg"
     },
     {
@@ -21,6 +22,7 @@ sample_products = [
         "price": 1299.99,
         "mrp": 1499.99,
         "stock": 30,
+        "category": "Electronics",
         "image_url": "products/laptop.jpg"
     },
     {
@@ -29,6 +31,7 @@ sample_products = [
         "price": 149.99,
         "mrp": 199.99,
         "stock": 100,
+        "category": "Electronics",
         "image_url": "products/earbuds.jpg"
     },
     {
@@ -37,6 +40,7 @@ sample_products = [
         "price": 249.99,
         "mrp": 299.99,
         "stock": 75,
+        "category": "Wearables",
         "image_url": "products/smartwatch.jpg"
     },
     {
@@ -45,6 +49,7 @@ sample_products = [
         "price": 499.99,
         "mrp": 549.99,
         "stock": 25,
+        "category": "Gaming",
         "image_url": "products/console.jpg"
     }
 ]
@@ -53,13 +58,13 @@ def create_merchant_if_not_exists(db: Session):
     try:
         # Check if merchant exists
         merchant_email = "merchant@example.com"
-        merchant = db.query(User).filter(User.email == merchant_email).first()
+        merchant = db.query(Users).filter(Users.email == merchant_email).first()
         merchant_profile = None
         
         if not merchant:
             print("Creating new merchant user...")
             # Create merchant user
-            merchant = User(
+            merchant = Users(
                 email=merchant_email,
                 full_name="Sample Merchant",
                 password_hash=get_password_hash("merchant123"),
@@ -129,6 +134,7 @@ def populate_products():
                         price=product_data["price"],
                         mrp=product_data["mrp"],
                         stock=product_data["stock"],
+                        category=product_data["category"],
                         image_url=product_data["image_url"],
                         status=ProductStatus.active,
                         created_at=datetime.utcnow(),

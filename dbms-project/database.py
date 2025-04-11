@@ -3,12 +3,16 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
+import psycopg2
 
 # Load environment variables
 load_dotenv()
 
+
 # Get database URL from environment variables
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/dbms-testing-1")
+DATABASE_URL = os.getenv("DATABASE_URL")
+# DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db.tumthedhpsrcwdqjgpzi.supabase.co:5432/postgres")
+
 
 # Create SQLAlchemy engine with connection testing
 engine = create_engine(
@@ -37,4 +41,4 @@ def get_db():
     try:
         yield db
     finally:
-        db.close()
+        db.close()                                                                                                                                              

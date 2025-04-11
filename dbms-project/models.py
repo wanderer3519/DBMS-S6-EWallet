@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DECIMAL, Enum, TIMESTAMP, Text
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DECIMAL, Enum, TIMESTAMP, Text,PrimaryKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 import enum
@@ -55,8 +55,8 @@ class OrderStatus(enum.Enum):
     cancelled = "cancelled"
 
 # Tables
-class User(Base):
-    __tablename__ = "user"
+class Users(Base):
+    __tablename__ = "users"
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String)
     full_name = Column(String)
@@ -68,7 +68,7 @@ class User(Base):
 class Account(Base):
     __tablename__ = "account"
     account_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    user_id = Column(Integer, ForeignKey("users.user_id"))
     account_type = Column(Enum(AccountType))
     balance = Column(DECIMAL(10, 2))
     created_at = Column(TIMESTAMP)
@@ -86,7 +86,7 @@ class Refunds(Base):
     __tablename__ = "refunds"
     refund_id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(Integer, ForeignKey("transactions.transaction_id"))
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    user_id = Column(Integer, ForeignKey("users.user_id"))
     amount = Column(DECIMAL(10, 2))
     status = Column(Enum(RefundStatus))
     created_at = Column(TIMESTAMP)
@@ -94,7 +94,7 @@ class Refunds(Base):
 class Logs(Base):
     __tablename__ = "logs"
     log_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    user_id = Column(Integer, ForeignKey("users.user_id"))
     action = Column(String)
     description = Column(String)
     created_at = Column(TIMESTAMP)
@@ -103,18 +103,28 @@ class RewardPoints(Base):
     __tablename__ = "reward_points"
     reward_id = Column(Integer, primary_key=True, autoincrement=True)
     transaction_id = Column(Integer, ForeignKey("transactions.transaction_id"))
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    user_id = Column(Integer, ForeignKey("users.user_id"))
     points = Column(Integer)
     status = Column(Enum(RewardStatus))
     created_at = Column(TIMESTAMP)
 
 class Merchants(Base):
     __tablename__ = "merchants"
-    merchant_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    
+    merchant_id = Column(Integer, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"))
     business_name = Column(String)
     business_category = Column(String)
     created_at = Column(TIMESTAMP)
+    name = Column(String(100))
+    email = Column(String(100))
+    contact = Column(String(12))
+    updated_at = Column(TIMESTAMP)
+    
+    __table_args__ = (
+        PrimaryKeyConstraint("merchant_id", "business_category"),
+    )
+
 
 class Product(Base):
     __tablename__ = "products"
@@ -125,6 +135,7 @@ class Product(Base):
     price = Column(DECIMAL(10, 2))
     mrp = Column(DECIMAL(10, 2))
     stock = Column(Integer)
+    business_category = Column(String(50))
     image_url = Column(String(255))
     status = Column(Enum(ProductStatus), default=ProductStatus.active)
     created_at = Column(TIMESTAMP)
@@ -133,7 +144,7 @@ class Product(Base):
 class Cart(Base):
     __tablename__ = "cart"
     cart_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    user_id = Column(Integer, ForeignKey("users.user_id"))
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 
@@ -149,7 +160,7 @@ class CartItem(Base):
 class Order(Base):
     __tablename__ = "orders"
     order_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("user.user_id"))
+    user_id = Column(Integer, ForeignKey("users.user_id"))
     account_id = Column(Integer, ForeignKey("account.account_id"))
     total_amount = Column(DECIMAL(10, 2))
     status = Column(Enum(OrderStatus), default=OrderStatus.pending)

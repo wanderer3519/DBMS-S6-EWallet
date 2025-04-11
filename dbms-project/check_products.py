@@ -1,12 +1,12 @@
 from database import engine, SessionLocal
-from models import Product, Merchants, User
+from models import Product, Merchants, Users
 from sqlalchemy.orm import Session
 
 def check_products():
     db = SessionLocal()
     try:
         print("\nChecking merchants...")
-        merchants = db.query(User).filter_by(role='merchant').all()
+        merchants = db.query(Users).filter_by(role='merchant').all()
         if merchants:
             print(f"Found {len(merchants)} merchants:")
             for merchant in merchants:
