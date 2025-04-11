@@ -1,5 +1,5 @@
 from database import engine, Base
-from models import User, Merchants, Product, Cart, CartItem, Order, OrderItem
+from models import Users, Merchants, Product, Cart, CartItem, Order, OrderItem
 import os
 
 def init_db():

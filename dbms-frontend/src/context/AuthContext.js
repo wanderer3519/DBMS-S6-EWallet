@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
       if (response.data && response.data.access_token) {
         localStorage.setItem('user', JSON.stringify(response.data));
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+        console.log(response.data);
         setUser(response.data);
         return { success: true, data: response.data };
       }

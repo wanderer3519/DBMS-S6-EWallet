@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
-from models import User, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
+from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta
@@ -67,6 +67,7 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -200,7 +201,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         db.begin()
         
         # Check if user already exists
-        db_user = db.query(User).filter(User.email == user.email).first()
+        db_user = db.query(Users).filter(Users.email == user.email).first()
         if db_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -209,7 +210,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
         
         # Create new user
         hashed_password = get_password_hash(user.password)
-        db_user = User(
+        db_user = Users(
             email=user.email,
             full_name=user.full_name,
             password_hash=hashed_password,
@@ -260,15 +261,14 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 @app.post("/login", response_model=Token)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # Find user by email
-    user = db.query(User).filter(User.email == user_data.email).first()
-    if not user:
+    users = db.query(Users).filter(Users.email == user_data.email).first()
+    if not users:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    
     # Verify password
-    if not verify_password(user_data.password, user.password_hash):
+    if not verify_password(user_data.password, users.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
@@ -276,26 +276,26 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     
     # Create access token
     access_token = create_access_token(
-        data={"sub": user.email}
+        data={"sub": users.email}
     )
     
     # Log login
     log = Logs(
-        user_id=user.user_id,
+        user_id=users.user_id,
         action="user_login",
-        description=f"User {user.email} logged in",
+        description=f"User {users.email} logged in",
         created_at=datetime.now()
     )
     db.add(log)
     db.commit()
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_id": users.user_id}
 
 # Account Management Endpoints
 @app.post("/accounts/", response_model=AccountResponse)
 def create_account(account: AccountCreate, user_id: int, db: Session = Depends(get_db)):
     # Check if user exists
-    user = db.query(User).filter(User.user_id == user_id).first()
+    user = db.query(Users).filter(Users.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -481,7 +481,7 @@ def get_merchant_products(merchant_id: int, db: Session = Depends(get_db)):
 @app.post("/products/upload-image/")
 async def upload_product_image(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: Users = Depends(get_current_user)
 ):
     if current_user.role != "merchant":
         raise HTTPException(
@@ -716,7 +716,7 @@ def get_logs(db: Session = Depends(get_db)):
 @app.get("/admin/stats", response_model=AdminStats)
 def get_admin_stats(db: Session = Depends(get_db)):
     # Get total users
-    total_users = db.query(User).count()
+    total_users = db.query(Users).count()
     
     # Get total orders
     total_orders = db.query(Order).count()
@@ -727,9 +727,9 @@ def get_admin_stats(db: Session = Depends(get_db)):
     ).scalar() or 0
     
     # Get active merchants
-    active_merchants = db.query(User).filter(
-        User.role == UserRole.merchant,
-        User.status == UserStatus.active
+    active_merchants = db.query(Users).filter(
+        Users.role == UserRole.merchant,
+        Users.status == UserStatus.active
     ).count()
     
     return {
@@ -742,7 +742,7 @@ def get_admin_stats(db: Session = Depends(get_db)):
 @app.get("/user/profile/{user_id}", response_model=UserProfileResponse)
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     # Get user details
-    user = db.query(User).filter(User.user_id == user_id).first()
+    user = db.query(Users).filter(Users.user_id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -771,16 +771,28 @@ def get_featured_products(db: Session = Depends(get_db)):
     return featured_products
 
 @app.get("/products/category/{category}", response_model=List[ProductResponse])
-def get_products_by_category(category: str, db: Session = Depends(get_db)):
-    products = db.query(Product).filter(
-        Product.category == category,
-        Product.status == ProductStatus.active,
-        Product.stock > 0
-    ).all()
-    return products
+async def get_products_by_category(category: str, db: Session = Depends(get_db)):
+    try:
+        products = db.query(Product).filter(
+            Product.business_category == category,
+            Product.status == ProductStatus.active
+        ).all()
+        return products
+    except Exception as e:
+        print(f"Error fetching products by category: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching products")
+
+@app.get("/products/categories", response_model=List[str])
+async def get_categories(db: Session = Depends(get_db)):
+    try:
+        categories = db.query(Product.business_category).distinct().all()
+        return [category[0] for category in categories if category[0]]
+    except Exception as e:
+        print(f"Error fetching categories: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching categories")
 
 @app.get("/api/account/profile", response_model=UserProfileResponse)
-async def get_profile(current_user: User = Depends(get_current_user)):
+async def get_profile(current_user: Users = Depends(get_current_user)):
     # Get user accounts
     accounts = db.query(Account).filter(Account.user_id == current_user.user_id).all()
     
@@ -797,7 +809,7 @@ async def get_profile(current_user: User = Depends(get_current_user)):
 @app.put("/api/account/profile", response_model=UserProfileResponse)
 async def update_profile(
     profile_update: UserUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     for field, value in profile_update.dict(exclude_unset=True).items():
@@ -821,7 +833,7 @@ async def update_profile(
 @app.put("/api/account/password")
 async def change_password(
     password_update: PasswordUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     if not verify_password(password_update.current_password, current_user.password_hash):
@@ -836,7 +848,7 @@ async def change_password(
 
 @app.get("/api/admin/stats")
 async def get_admin_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     if current_user.role != "admin":
@@ -846,7 +858,7 @@ async def get_admin_stats(
         )
     
     # Get total users
-    total_users = db.query(User).count()
+    total_users = db.query(Users).count()
     
     # Get total orders and revenue
     total_orders = db.query(Order).count()
@@ -855,9 +867,9 @@ async def get_admin_stats(
     ).scalar() or 0
     
     # Get active merchants
-    active_merchants = db.query(User).filter(
-        User.role == "merchant",
-        User.status == UserStatus.active
+    active_merchants = db.query(Users).filter(
+        Users.role == "merchant",
+        Users.status == UserStatus.active
     ).count()
     
     return {
@@ -871,7 +883,7 @@ async def get_admin_stats(
 async def get_admin_logs(
     start_date: datetime = None,
     end_date: datetime = None,
-    current_user: User = Depends(get_current_user),
+    current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     if current_user.role != "admin":
@@ -892,7 +904,7 @@ async def get_admin_logs(
 
 @app.get("/api/merchant/products", response_model=List[ProductResponse])
 async def get_merchant_products(
-    current_user: User = Depends(get_current_user),
+    current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     if current_user.role != "merchant":
@@ -909,7 +921,7 @@ async def get_merchant_products(
 @app.post("/api/merchant/products/upload-image")
 async def upload_product_image(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_merchant_user)
+    current_user: Users = Depends(get_current_merchant_user)
 ):
     try:
         # Validate file type
@@ -931,7 +943,7 @@ async def create_merchant_product(
     mrp: float = Form(...),
     stock: int = Form(...),
     image: UploadFile = File(...),
-    current_user: User = Depends(get_current_merchant_user),
+    current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -975,7 +987,7 @@ async def update_merchant_product(
     mrp: Optional[float] = Form(None),
     stock: Optional[int] = Form(None),
     image: Optional[UploadFile] = File(None),
-    current_user: User = Depends(get_current_merchant_user),
+    current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -1025,7 +1037,7 @@ async def update_merchant_product(
 @app.delete("/api/merchant/products/{product_id}")
 async def delete_merchant_product(
     product_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     if current_user.role != "merchant":
@@ -1058,7 +1070,7 @@ async def create_product(
     mrp: float = Form(...),
     stock: int = Form(...),
     image: UploadFile = File(...),
-    current_user: User = Depends(get_current_merchant_user),
+    current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -1093,7 +1105,7 @@ async def create_product(
 
 @app.get("/merchant/products", response_model=List[ProductResponse])
 async def get_merchant_products(
-    current_user: User = Depends(get_current_merchant_user),
+    current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
     merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
@@ -1112,7 +1124,7 @@ async def update_product(
     mrp: Optional[float] = Form(None),
     stock: Optional[int] = Form(None),
     image: Optional[UploadFile] = File(None),
-    current_user: User = Depends(get_current_merchant_user),
+    current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
     # Get merchant record
@@ -1154,7 +1166,7 @@ async def update_product(
 @app.delete("/merchant/products/{product_id}")
 async def delete_product(
     product_id: int,
-    current_user: User = Depends(get_current_merchant_user),
+    current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
     # Get merchant record

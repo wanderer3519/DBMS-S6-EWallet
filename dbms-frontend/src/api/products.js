@@ -11,7 +11,9 @@ const getAuthHeader = () => {
 // Get all products
 export const getProducts = async () => {
     try {
-        const response = await axios.get(`${API_URL}/products/`);
+        const response = await axios.get(`${API_URL}/products/`, {
+            headers: getAuthHeader()
+        });
         return response.data;
     } catch (error) {
         throw error.response?.data || { detail: 'Failed to fetch products' };
@@ -59,5 +61,15 @@ export const getProductsByCategory = async (category) => {
         return response.data;
     } catch (error) {
         throw error.response?.data || { detail: 'Failed to fetch products by category' };
+    }
+};
+
+// Get all categories
+export const getCategories = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/products/categories`);
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { detail: 'Failed to fetch categories' };
     }
 }; 

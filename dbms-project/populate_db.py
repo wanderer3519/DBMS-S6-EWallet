@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from database import engine, get_db
-from models import User, Product, Account, UserRole, UserStatus, ProductStatus, AccountType
+from models import Users, Product, Account, UserRole, UserStatus, ProductStatus, AccountType
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -14,7 +14,7 @@ def populate_database():
     try:
         # Create sample users
         users = [
-            User(
+            Users(
                 email="admin@example.com",
                 full_name="Admin User",
                 password_hash="hashed_password_1",  # In production, use proper hashing
@@ -22,7 +22,7 @@ def populate_database():
                 status=UserStatus.active,
                 created_at=datetime.now()
             ),
-            User(
+            Users(
                 email="merchant@example.com",
                 full_name="Merchant User",
                 password_hash="hashed_password_2",
@@ -30,7 +30,7 @@ def populate_database():
                 status=UserStatus.active,
                 created_at=datetime.now()
             ),
-            User(
+            Users(
                 email="customer@example.com",
                 full_name="Customer User",
                 password_hash="hashed_password_3",
