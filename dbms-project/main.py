@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from database import engine, Base, get_db
 from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
-from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_active_user, get_current_admin_user, get_current_merchant_user
+from auth import get_password_hash, verify_password, create_access_token, get_current_user,  get_current_merchant_user, create_token
 from file_upload import save_uploaded_file, delete_file
 from schemas import *
 
@@ -126,7 +126,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             detail=f"Error creating user: {str(e)}"
         )
 
-@app.post("/api/login", response_model=Token)
+@app.post("/api/login", response_model=LoginResponse)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # Find user by email
     users = db.query(Users).filter(Users.email == user_data.email).first()
@@ -157,7 +157,11 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     db.add(log)
     db.commit()
     
-    return {"access_token": access_token, "token_type": "bearer", "user_id": users.user_id}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "user_id": users.user_id
+    }
 
 @app.get("/api/user/me", response_model=UserView)
 def read_users_me(current_user: Users = Depends(get_current_user)):
@@ -166,6 +170,23 @@ def read_users_me(current_user: Users = Depends(get_current_user)):
         "email": current_user.email,
         "full_name": current_user.full_name,
     }
+
+@app.post("/api/token")
+async def generate_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    # Find user by email (username holds the email in OAuth2PasswordRequestForm)
+    user = db.query(Users).filter(Users.email == form_data.username).first()
+
+    # Check if user exists and password matches
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
+    return await create_token(user)
 
 # Account Management Endpoints
 @app.post("/api/accounts", response_model=AccountResponse)
@@ -350,7 +371,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     return product
 
 @app.get("/api/products/merchant/{merchant_id}", response_model=List[ProductResponse])
-def get_merchant_products(merchant_id: int, db: Session = Depends(get_db)):
+def get_merchant_products_id(merchant_id: int, db: Session = Depends(get_db)):
     products = db.query(Product).filter(Product.merchant_id == merchant_id).all()
     return products
 
@@ -947,17 +968,17 @@ async def create_product(
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/api/merchant/products", response_model=List[ProductResponse])
-async def get_merchant_products(
-    current_user: Users = Depends(get_current_merchant_user),
-    db: Session = Depends(get_db)
-):
-    merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
-    if not merchant:
-        raise HTTPException(status_code=404, detail="Merchant profile not found")
+# @app.get("/api/merchant/products", response_model=List[ProductResponse])
+# async def get_merchant_products(
+#     current_user: Users = Depends(get_current_merchant_user),
+#     db: Session = Depends(get_db)
+# ):
+#     merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
+#     if not merchant:
+#         raise HTTPException(status_code=404, detail="Merchant profile not found")
     
-    products = db.query(Product).filter(Product.merchant_id == merchant.merchant_id).all()
-    return products
+#     products = db.query(Product).filter(Product.merchant_id == merchant.merchant_id).all()
+#     return products
 
 @app.put("/api/merchant/products/{product_id}", response_model=ProductResponse)
 async def update_product(

@@ -18,6 +18,26 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user_id: int
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+class UserSchema(BaseModel):
+    user_id: int
+    email: EmailStr
+    full_name: str
+    role: UserRole
+    status: UserStatus
+    password_hash: str
+
+    model_config = {
+        "from_attributes": True,
+    }
 
 class TokenData(BaseModel):
     email: Optional[str] = None
@@ -32,8 +52,9 @@ class AccountResponse(BaseModel):
     balance: float
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {   
+        "from_attributes": True,
+    }
 
 class TransactionCreate(BaseModel):
     account_id: int
@@ -48,8 +69,9 @@ class TransactionResponse(BaseModel):
     status: TransactionStatus
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True,
+    }
 
 # Product Schemas
 class ProductCreate(BaseModel):
@@ -70,8 +92,9 @@ class ProductResponse(BaseModel):
     image_url: str
     status: ProductStatus
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True,
+    }
 
 # Cart Schemas
 class CartItemCreate(BaseModel):
@@ -83,8 +106,9 @@ class CartResponse(BaseModel):
     items: List[dict]
     total_amount: float
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True,
+    }
 
 # Order Schemas
 class OrderCreate(BaseModel):
@@ -96,8 +120,9 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     items: List[dict]
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True,
+    }
 
 # Admin Stats Schema
 class AdminStats(BaseModel):
@@ -116,8 +141,9 @@ class UserProfileResponse(BaseModel):
     created_at: datetime
     accounts: List[AccountResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True,
+    }
 
 # User Update Schema
 class UserUpdate(BaseModel):

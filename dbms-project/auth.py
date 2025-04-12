@@ -6,9 +6,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from enum import Enum
 
 from database import get_db
 from models import Users
+from schemas import UserSchema
 
 import os
 from dotenv import load_dotenv
@@ -38,6 +40,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+async def create_token(user: Users):
+    # Convert SQLAlchemy model to Pydantic schema using from_attributes
+    user_obj = UserSchema.model_validate(user)
+
+    # Create token with user data
+
+    user_dict = user_obj.model_dump()
+
+    # Fix Enum by converting any Enum field to its value
+    for key, value in user_dict.items():
+        if isinstance(value, Enum):
+            user_dict[key] = value.value
+
+    token = jwt.encode(user_dict, SECRET_KEY, algorithm=ALGORITHM)
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+    }
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Users:
     credentials_exception = HTTPException(

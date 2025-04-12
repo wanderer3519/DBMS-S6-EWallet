@@ -9,6 +9,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
+    // console.log("Check if user exists", userData);
     if (userData) {
       try {
         const parsedUser = JSON.parse(userData);
