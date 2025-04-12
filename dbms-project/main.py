@@ -59,6 +59,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: UserRole = UserRole.customer
+    contact: Optional[str] = None
+
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -293,19 +295,14 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         
         # Get user's account
         account = db.query(Account).filter(Account.user_id == users.user_id).first()
-        print("accesstoken: ",access_token)
-        print("user: ",users.user_id)
-        print("email: ",users.email)
-        print("role: ",users.role.value)
-        print("name: ",users.full_name)
-        print("account: ",account.account_id)
-        print("balance: ",account.balance)
+        
+        # Return token with user and account information
         return {
             "access_token": access_token,
             "token_type": "bearer",
             "user_id": users.user_id,
             "email": users.email,
-            "role": users.role.value,
+            "role": users.role,
             "name": users.full_name,
             "account": {
                 "id": account.account_id if account else None,
@@ -1311,3 +1308,110 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
+
+# Merchant Signup and Login
+@app.post("/merchant/signup", response_model=Token)
+async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
+    # Check if user already exists
+    db_user = db.query(Users).filter(Users.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash the password
+    hashed_password = get_password_hash(user.password)
+    
+    # Create new user
+    db_user = Users(
+        email=user.email,
+        full_name=user.full_name,
+        phone=user.contact or "",  # Use empty string if phone is not provided
+        password_hash=hashed_password
+    )
+    db.add(db_user)
+    db.flush()  # Flush to get the user_id
+    
+    # Create merchant profile with required fields
+    merchant = Merchants(
+        user_id=db_user.user_id,
+        business_name=user.full_name,  # Use full_name as business_name
+        business_category="General",  # Default category
+        name=user.full_name,
+        email=user.email,
+        contact=user.contact or ""  # Use empty string if phone is not provided
+    )
+    db.add(merchant)
+    db.commit()
+    db.refresh(db_user)
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/merchant/login", response_model=Token)
+def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
+    try:
+        users = db.query(Users).filter(Users.email == user_data.email).first()
+        if not users or users.role != UserRole.merchant:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        if not verify_password(user_data.password, users.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        access_token = create_access_token(data={"sub": users.email})
+        return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as e:
+        print(f"Error during merchant login: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during login"
+        )
+
+# Merchant Product Management
+@app.get("/merchant/products", response_model=List[ProductResponse])
+async def get_merchant_products(
+    current_user: Users = Depends(get_current_merchant_user),
+    db: Session = Depends(get_db)
+):
+    products = db.query(Product).filter(Product.merchant_id == current_user.user_id).all()
+    return products
+
+@app.post("/merchant/products", response_model=ProductResponse)
+async def create_merchant_product(
+    name: str = Form(...),
+    description: str = Form(...),
+    price: float = Form(...),
+    mrp: float = Form(...),
+    stock: int = Form(...),
+    image: UploadFile = File(...),
+    current_user: Users = Depends(get_current_merchant_user),
+    db: Session = Depends(get_db)
+):
+    print(f"Current user: {current_user}")
+    try:
+        merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant profile not found")
+        image_url = await save_uploaded_file(image)
+        product = Product(
+            merchant_id=merchant.merchant_id,
+            name=name,
+            description=description,
+            price=price,
+            mrp=mrp,
+            stock=stock,
+            image_url=image_url,
+            status=ProductStatus.active,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        return product
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
