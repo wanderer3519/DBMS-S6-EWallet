@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Table, Button, Form, Alert, Card } from 'react-bootstrap';
+import { Container, Table, Button, Alert, Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { getUserProfile } from '../api/user';
 import '../styles/Cart.css';

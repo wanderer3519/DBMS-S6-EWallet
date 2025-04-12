@@ -1,5 +1,5 @@
 from database import engine, Base
-from models import Users, Merchants, Product, Cart, CartItem, Order, OrderItem
+from sqlalchemy import inspect
 import os
 
 def init_db():
@@ -11,7 +11,7 @@ def init_db():
         print(f"Error creating tables: {e}")
         raise
 
-from sqlalchemy import inspect
+
 
 def check_tables():
     try:

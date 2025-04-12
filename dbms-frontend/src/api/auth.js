@@ -28,7 +28,7 @@ const API_URL = "http://localhost:8000";
 const authService = {
   login: async (email, password) => {
     try {
-      const response = await axios.post(`${API_URL}/login`, {
+      const response = await axios.post(`${API_URL}/api/login`, {
         email,
         password,
       });
@@ -45,7 +45,7 @@ const authService = {
 
   signup: async (userData) => {
     try {
-      const response = await axios.post(`${API_URL}/signup`, userData);
+      const response = await axios.post(`${API_URL}/api/signup`, userData);
       if (response.data.access_token) {
         localStorage.setItem("user", JSON.stringify(response.data));
       }

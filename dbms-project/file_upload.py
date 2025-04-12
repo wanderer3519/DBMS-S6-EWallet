@@ -1,8 +1,10 @@
+from fastapi import UploadFile, HTTPException
+
 import os
 import uuid
-from fastapi import UploadFile, HTTPException
+
 import aiofiles
-from datetime import datetime
+
 
 UPLOAD_DIR = "uploads/products"
 

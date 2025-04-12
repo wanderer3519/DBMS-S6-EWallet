@@ -1,24 +1,27 @@
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
-from sqlalchemy.orm import Session
-from database import engine, Base, get_db
-from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.sql import text
-from datetime import datetime, timedelta
-from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_active_user, get_current_admin_user, get_current_merchant_user
-from typing import Optional, List
-import shutil
-import os
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import uuid
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-import jwt
-from passlib.context import CryptContext
-from dotenv import load_dotenv
+
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import text
 from sqlalchemy import func
-import schemas
+
+from passlib.context import CryptContext
+from pydantic import BaseModel, EmailStr
+from datetime import datetime, timedelta
+from typing import Optional, List
+from dotenv import load_dotenv
+
+
+from database import engine, Base, get_db
+from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
+from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_active_user, get_current_admin_user, get_current_merchant_user
 from file_upload import save_uploaded_file, delete_file
+from schemas import *
+
+import shutil
+import os
 
 # Load environment variables
 load_dotenv()
@@ -53,148 +56,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Pydantic Schemas
-class UserCreate(BaseModel):
-    full_name: str
-    email: EmailStr
-    password: str
-    role: UserRole = UserRole.customer
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    
-
-class TokenData(BaseModel):
-    email: Optional[str] = None
-
-class AccountCreate(BaseModel):
-    account_type: AccountType = AccountType.user
-
-class AccountResponse(BaseModel):
-    account_id: int
-    user_id: int
-    account_type: AccountType
-    balance: float
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-class TransactionCreate(BaseModel):
-    account_id: int
-    transaction_type: TransactionType
-    amount: float
-
-class TransactionResponse(BaseModel):
-    transaction_id: int
-    account_id: int
-    amount: float
-    transaction_type: TransactionType
-    status: TransactionStatus
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-# Product Schemas
-class ProductCreate(BaseModel):
-    name: str
-    description: str
-    price: float
-    mrp: float
-    stock: int
-    image_url: str
-
-class ProductResponse(BaseModel):
-    product_id: int
-    name: str
-    description: str
-    price: float
-    mrp: float
-    stock: int
-    image_url: str
-    status: ProductStatus
-
-    class Config:
-        from_attributes = True
-
-# Cart Schemas
-class CartItemCreate(BaseModel):
-    product_id: int
-    quantity: int
-
-class CartResponse(BaseModel):
-    cart_id: int
-    items: List[dict]
-    total_amount: float
-
-    class Config:
-        from_attributes = True
-
-# Order Schemas
-class OrderCreate(BaseModel):
-    account_id: int
-
-class OrderResponse(BaseModel):
-    order_id: int
-    total_amount: float
-    status: OrderStatus
-    items: List[dict]
-
-    class Config:
-        from_attributes = True
-
-# Admin Stats Schema
-class AdminStats(BaseModel):
-    total_users: int
-    total_orders: int
-    total_revenue: float
-    active_merchants: int
-
-# User Profile Response Schema
-class UserProfileResponse(BaseModel):
-    user_id: int
-    full_name: str
-    email: str
-    role: UserRole
-    status: UserStatus
-    created_at: datetime
-    accounts: List[AccountResponse]
-
-    class Config:
-        from_attributes = True
-
-# User Update Schema
-class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
-
-# Password Update Schema
-class PasswordUpdate(BaseModel):
-    current_password: str
-    new_password: str
-
-# Product Update Schema
-class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    price: Optional[float] = None
-    mrp: Optional[float] = None
-    stock: Optional[int] = None
-    image_url: Optional[str] = None
-    status: Optional[ProductStatus] = None
 
 # API Endpoints
-@app.get('/')
+@app.get('/api')
 def home():
     return {"message": "Hello! This is Chakradhar Reddy"}
 
-@app.post("/signup", response_model=Token)
+@app.post("/api/signup", response_model=Token)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     try:
         # Start a transaction
@@ -258,7 +126,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             detail=f"Error creating user: {str(e)}"
         )
 
-@app.post("/login", response_model=Token)
+@app.post("/api/login", response_model=Token)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
     # Find user by email
     users = db.query(Users).filter(Users.email == user_data.email).first()
@@ -291,8 +159,16 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     
     return {"access_token": access_token, "token_type": "bearer", "user_id": users.user_id}
 
+@app.get("/api/user/me", response_model=UserView)
+def read_users_me(current_user: Users = Depends(get_current_user)):
+    return {
+        "user_id": current_user.user_id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+    }
+
 # Account Management Endpoints
-@app.post("/accounts/", response_model=AccountResponse)
+@app.post("/api/accounts", response_model=AccountResponse)
 def create_account(account: AccountCreate, user_id: int, db: Session = Depends(get_db)):
     # Check if user exists
     user = db.query(Users).filter(Users.user_id == user_id).first()
@@ -323,12 +199,12 @@ def create_account(account: AccountCreate, user_id: int, db: Session = Depends(g
     
     return db_account
 
-@app.get("/accounts/{user_id}", response_model=List[AccountResponse])
+@app.get("/api/accounts/{user_id}", response_model=List[AccountResponse])
 def get_user_accounts(user_id: int, db: Session = Depends(get_db)):
     accounts = db.query(Account).filter(Account.user_id == user_id).all()
     return accounts
 
-@app.post("/accounts/{account_id}/top-up", response_model=TransactionResponse)
+@app.post("/api/accounts/{account_id}/top-up", response_model=TransactionResponse)
 def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)):
     # Check if account exists
     account = db.query(Account).filter(Account.account_id == account_id).first()
@@ -363,7 +239,7 @@ def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)
     
     return transaction
 
-@app.post("/transactions/", response_model=TransactionResponse)
+@app.post("/api/transactions", response_model=TransactionResponse)
 def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
     try:
         # Check if account exists
@@ -400,12 +276,12 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/transactions/{account_id}", response_model=List[TransactionResponse])
+@app.get("/api/transactions/{account_id}", response_model=List[TransactionResponse])
 def fetch_transactions(account_id: int, db: Session = Depends(get_db)):
     transactions = db.query(Transactions).filter(Transactions.account_id == account_id).all()
     return transactions
 
-@app.get("/reward-points/{account_id}")
+@app.get("/api/reward-points/{account_id}")
 def get_reward_points(account_id: int, db: Session = Depends(get_db)):
     query = text("SELECT reward_id, account_id, points, status, created_at FROM reward_points WHERE account_id = :account_id")
     result = db.execute(query, {"account_id": account_id}).fetchall()
@@ -417,7 +293,7 @@ def get_reward_points(account_id: int, db: Session = Depends(get_db)):
 
     return {"reward_points": reward_points_list}
 
-@app.post("/redeem-rewards/")
+@app.post("/api/redeem-rewards")
 def redeem_rewards(account_id: int, points: int, db: Session = Depends(get_db)):
     try:
         query = text("SELECT redeem_rewards(:account_id, :points)")
@@ -430,7 +306,7 @@ def redeem_rewards(account_id: int, points: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/process-withdrawal/")
+@app.post("/api/process-withdrawal")
 def process_withdrawal(account_id: int, amount: float, db: Session = Depends(get_db)):
     try:
         query = text("SELECT process_withdrawal(:account_id, :amount)")
@@ -444,7 +320,7 @@ def process_withdrawal(account_id: int, amount: float, db: Session = Depends(get
         raise HTTPException(status_code=400, detail=str(e))
     
 # Product Endpoints
-@app.post("/products/", response_model=ProductResponse)
+@app.post("/api/products", response_model=ProductResponse)
 def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     db_product = Product(
         name=product.name,
@@ -461,24 +337,24 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     db.refresh(db_product)
     return db_product
 
-@app.get("/products/", response_model=List[ProductResponse])
+@app.get("/api/products", response_model=List[ProductResponse])
 def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     products = db.query(Product).offset(skip).limit(limit).all()
     return products
 
-@app.get("/products/{product_id}", response_model=ProductResponse)
+@app.get("/api/products/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.product_id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
 
-@app.get("/products/merchant/{merchant_id}", response_model=List[ProductResponse])
+@app.get("/api/products/merchant/{merchant_id}", response_model=List[ProductResponse])
 def get_merchant_products(merchant_id: int, db: Session = Depends(get_db)):
     products = db.query(Product).filter(Product.merchant_id == merchant_id).all()
     return products
 
-@app.post("/products/upload-image/")
+@app.post("/api/products/upload-image")
 async def upload_product_image(
     file: UploadFile = File(...),
     current_user: Users = Depends(get_current_user)
@@ -505,7 +381,7 @@ async def upload_product_image(
     return {"url": f"/uploads/{filename}"}
 
 # Cart Endpoints
-@app.post("/cart/add", response_model=CartResponse)
+@app.post("/api/cart/add", response_model=CartResponse)
 def add_to_cart(item: CartItemCreate, user_id: int, db: Session = Depends(get_db)):
     # Get or create cart
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
@@ -567,7 +443,7 @@ def add_to_cart(item: CartItemCreate, user_id: int, db: Session = Depends(get_db
         "total_amount": total
     }
 
-@app.get("/cart/{user_id}", response_model=CartResponse)
+@app.get("/api/cart/{user_id}", response_model=CartResponse)
 def get_cart(user_id: int, db: Session = Depends(get_db)):
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
     if not cart:
@@ -595,7 +471,7 @@ def get_cart(user_id: int, db: Session = Depends(get_db)):
     }
 
 # Order Endpoints
-@app.post("/orders/", response_model=OrderResponse)
+@app.post("/api/orders", response_model=OrderResponse)
 def create_order(order: OrderCreate, user_id: int, db: Session = Depends(get_db)):
     # Get cart
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
@@ -683,13 +559,13 @@ def create_order(order: OrderCreate, user_id: int, db: Session = Depends(get_db)
         "items": [{"product_id": item[0].product_id, "quantity": item[1]} for item in order_items]
     }
 
-@app.get("/orders/{user_id}", response_model=List[OrderResponse])
+@app.get("/api/orders/{user_id}", response_model=List[OrderResponse])
 def get_user_orders(user_id: int, db: Session = Depends(get_db)):
     orders = db.query(Order).filter(Order.user_id == user_id).all()
     return orders
 
 # Admin Endpoints
-@app.get("/admin/logs")
+@app.get("/api/admin/logs")
 def get_logs(db: Session = Depends(get_db)):
     query = text("""
         SELECT l.log_id, l.user_id, u.full_name, l.action, l.description, l.created_at
@@ -713,7 +589,7 @@ def get_logs(db: Session = Depends(get_db)):
     
     return {"logs": logs}
 
-@app.get("/admin/stats", response_model=AdminStats)
+@app.get("/api/admin/stats", response_model=AdminStats)
 def get_admin_stats(db: Session = Depends(get_db)):
     # Get total users
     total_users = db.query(Users).count()
@@ -739,7 +615,7 @@ def get_admin_stats(db: Session = Depends(get_db)):
         "active_merchants": active_merchants
     }
 
-@app.get("/user/profile/{user_id}", response_model=UserProfileResponse)
+@app.get("/api/user/profile/{user_id}", response_model=UserProfileResponse)
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     # Get user details
     user = db.query(Users).filter(Users.user_id == user_id).first()
@@ -759,7 +635,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
         "accounts": accounts
     }
 
-@app.get("/products/featured", response_model=List[ProductResponse])
+@app.get("/api/products/featured", response_model=List[ProductResponse])
 def get_featured_products(db: Session = Depends(get_db)):
     # Get products with discount (where price < mrp)
     featured_products = db.query(Product).filter(
@@ -770,7 +646,7 @@ def get_featured_products(db: Session = Depends(get_db)):
     
     return featured_products
 
-@app.get("/products/category/{category}", response_model=List[ProductResponse])
+@app.get("/api/products/category/{category}", response_model=List[ProductResponse])
 async def get_products_by_category(category: str, db: Session = Depends(get_db)):
     try:
         products = db.query(Product).filter(
@@ -782,7 +658,7 @@ async def get_products_by_category(category: str, db: Session = Depends(get_db))
         print(f"Error fetching products by category: {e}")
         raise HTTPException(status_code=500, detail="Error fetching products")
 
-@app.get("/products/categories", response_model=List[str])
+@app.get("/api/products/categories", response_model=List[str])
 async def get_categories(db: Session = Depends(get_db)):
     try:
         categories = db.query(Product.business_category).distinct().all()
@@ -792,7 +668,7 @@ async def get_categories(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Error fetching categories")
 
 @app.get("/api/account/profile", response_model=UserProfileResponse)
-async def get_profile(current_user: Users = Depends(get_current_user)):
+async def get_profile(db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     # Get user accounts
     accounts = db.query(Account).filter(Account.user_id == current_user.user_id).all()
     
@@ -846,38 +722,6 @@ async def change_password(
     db.commit()
     return {"message": "Password updated successfully"}
 
-@app.get("/api/admin/stats")
-async def get_admin_stats(
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can access statistics"
-        )
-    
-    # Get total users
-    total_users = db.query(Users).count()
-    
-    # Get total orders and revenue
-    total_orders = db.query(Order).count()
-    total_revenue = db.query(Order).filter(Order.status == "completed").with_entities(
-        func.sum(Order.total_amount)
-    ).scalar() or 0
-    
-    # Get active merchants
-    active_merchants = db.query(Users).filter(
-        Users.role == "merchant",
-        Users.status == UserStatus.active
-    ).count()
-    
-    return {
-        "total_users": total_users,
-        "total_orders": total_orders,
-        "total_revenue": total_revenue,
-        "active_merchants": active_merchants
-    }
 
 @app.get("/api/admin/logs")
 async def get_admin_logs(
@@ -965,8 +809,8 @@ async def create_merchant_product(
             stock=stock,
             image_url=image_url,
             status=ProductStatus.active,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
 
         db.add(product)
@@ -1025,7 +869,7 @@ async def update_merchant_product(
             # Save new image
             product.image_url = await save_uploaded_file(image)
 
-        product.updated_at = datetime.utcnow()
+        product.updated_at = datetime.now()
         db.commit()
         db.refresh(product)
 
@@ -1062,7 +906,7 @@ async def delete_merchant_product(
     return {"message": "Product deleted successfully"}
 
 # Product Management Endpoints
-@app.post("/merchant/products", response_model=ProductResponse)
+@app.post("/api/merchant/products", response_model=ProductResponse)
 async def create_product(
     name: str = Form(...),
     description: str = Form(...),
@@ -1092,8 +936,8 @@ async def create_product(
             stock=stock,
             image_url=image_url,
             status=ProductStatus.active,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
         db.add(product)
         db.commit()
@@ -1103,7 +947,7 @@ async def create_product(
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/merchant/products", response_model=List[ProductResponse])
+@app.get("/api/merchant/products", response_model=List[ProductResponse])
 async def get_merchant_products(
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
@@ -1115,7 +959,7 @@ async def get_merchant_products(
     products = db.query(Product).filter(Product.merchant_id == merchant.merchant_id).all()
     return products
 
-@app.put("/merchant/products/{product_id}", response_model=ProductResponse)
+@app.put("/api/merchant/products/{product_id}", response_model=ProductResponse)
 async def update_product(
     product_id: int,
     name: Optional[str] = Form(None),
@@ -1158,12 +1002,12 @@ async def update_product(
         # Save new image
         product.image_url = await save_uploaded_file(image, "products")
 
-    product.updated_at = datetime.utcnow()
+    product.updated_at = datetime.now()
     db.commit()
     db.refresh(product)
     return product
 
-@app.delete("/merchant/products/{product_id}")
+@app.delete("/api/merchant/products/{product_id}")
 async def delete_product(
     product_id: int,
     current_user: Users = Depends(get_current_merchant_user),
@@ -1192,7 +1036,7 @@ async def delete_product(
     return {"message": "Product deleted successfully"}
 
 # Public product endpoints
-@app.get("/products", response_model=List[ProductResponse])
+@app.get("/api/products", response_model=List[ProductResponse])
 async def get_products(db: Session = Depends(get_db)):
     try:
         products = db.query(Product).filter(Product.status == ProductStatus.active).all()
@@ -1201,7 +1045,7 @@ async def get_products(db: Session = Depends(get_db)):
         print(f"Error fetching products: {e}")
         raise HTTPException(status_code=500, detail="Error fetching products")
 
-@app.get("/products/{product_id}", response_model=ProductResponse)
+@app.get("/api/products/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(
         Product.product_id == product_id,

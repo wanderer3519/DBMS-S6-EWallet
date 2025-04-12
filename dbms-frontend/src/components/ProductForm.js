@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Form, Button, Card, Alert } from 'react-bootstrap';
-import axios from 'axios';
 
 const ProductForm = ({ product, onSubmit, onCancel }) => {
     const [formData, setFormData] = useState({

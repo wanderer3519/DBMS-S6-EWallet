@@ -21,10 +21,12 @@ const Dashboard = () => {
                 return;
             }
 
+            console.log("Dashboard", user);
             try {
+                console.log(user);
                 console.log(user.user_id);
                 // Fetch balance
-                const balanceResponse = await axios.get(`http://localhost:8000/accounts/${user.user_id}`, {
+                const balanceResponse = await axios.get(`http://localhost:8000/api/accounts/${user.user_id}`, {
                     headers: {
                         'Authorization': `Bearer ${user.access_token}`
                     }
@@ -32,7 +34,7 @@ const Dashboard = () => {
                 setBalance(balanceResponse.data.balance);
 
                 // Fetch products
-                const productsResponse = await axios.get('http://localhost:8000/products/', {
+                const productsResponse = await axios.get('http://localhost:8000/api/products/', {
                     headers: {
                         'Authorization': `Bearer ${user.access_token}`
                     }
