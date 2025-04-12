@@ -1,0 +1,18 @@
+3 roles:
+    User
+    Merchant
+    Admin
+
+3 views:
+
+5 functions:
+    create_user
+    login_user ?
+
+4 triggers:
+    Transaction
+
+Each role 1 function
+
+
+5 queries using different functions and roles
