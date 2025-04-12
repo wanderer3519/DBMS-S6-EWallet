@@ -155,6 +155,9 @@ class UserView(BaseModel):
     email: EmailStr
     full_name: str
 
+    model_config = {
+        "from_attributes": True,
+    }
 
 # Password Update Schema
 class PasswordUpdate(BaseModel):

@@ -47,12 +47,7 @@ async def create_token(user: Users):
 
     # Create token with user data
 
-    user_dict = user_obj.model_dump()
-
-    # Fix Enum by converting any Enum field to its value
-    for key, value in user_dict.items():
-        if isinstance(value, Enum):
-            user_dict[key] = value.value
+    user_dict = {'sub': user_obj.email, 'user_id': user_obj.user_id}
 
     token = jwt.encode(user_dict, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -78,11 +73,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     user = db.query(Users).filter(Users.email == email).first()
     if user is None:
         raise credentials_exception
-    return {
-        'user_id': user.user_id,
-        'email': user.email,
-        'full_name': user.full_name,
-    }
+    return user
 
 async def get_current_active_user(current_user: Users = Depends(get_current_user)) -> Users:
     if not current_user.is_active:

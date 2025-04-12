@@ -157,19 +157,27 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     db.add(log)
     db.commit()
     
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer", 
-        "user_id": users.user_id
-    }
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user_id=users.user_id
+    )
 
 @app.get("/api/user/me", response_model=UserView)
-def read_users_me(current_user: Users = Depends(get_current_user)):
-    return {
-        "user_id": current_user.user_id,
-        "email": current_user.email,
-        "full_name": current_user.full_name,
-    }
+async def read_users_me(current_user: Users = Depends(get_current_user)):    
+    # print(current_user)
+    # print(type(current_user))
+
+    return UserView(
+        user_id=current_user.user_id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+    )
+
+@app.get("/api/user/test", response_model=UserView)
+def test_user():
+    return UserView(user_id=1, email="test@example.com", full_name="Test User")
+
 
 @app.post("/api/token")
 async def generate_token(
@@ -358,17 +366,17 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     db.refresh(db_product)
     return db_product
 
-@app.get("/api/products", response_model=List[ProductResponse])
-def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    products = db.query(Product).offset(skip).limit(limit).all()
-    return products
+# @app.get("/api/products", response_model=List[ProductResponse])
+# def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+#     products = db.query(Product).offset(skip).limit(limit).all()
+#     return products
 
-@app.get("/api/products/{product_id}", response_model=ProductResponse)
-def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.product_id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return product
+# @app.get("/api/products/{product_id}", response_model=ProductResponse)
+# def get_product(product_id: int, db: Session = Depends(get_db)):
+#     product = db.query(Product).filter(Product.product_id == product_id).first()
+#     if not product:
+#         raise HTTPException(status_code=404, detail="Product not found")
+#     return product
 
 @app.get("/api/products/merchant/{merchant_id}", response_model=List[ProductResponse])
 def get_merchant_products_id(merchant_id: int, db: Session = Depends(get_db)):
