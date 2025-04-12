@@ -19,14 +19,13 @@ const Login = () => {
         try {
             const result = await login(email, password);
             if (result.success) {
-                // Navigate to dashboard
-                navigate('/');
+                navigate('/dashboard');
             } else {
-                setError(result.error || 'Login failed');
+                setError(typeof result.error === 'string' ? result.error : 'Login failed. Please check your credentials.');
             }
         } catch (err) {
             console.error('Login error:', err);
-            setError('An unexpected error occurred');
+            setError('An unexpected error occurred. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -47,6 +46,8 @@ const Login = () => {
                             onChange={(e) => setEmail(e.target.value)}
                             required
                             disabled={loading}
+                            placeholder="Enter your email"
+                            autoComplete="email"
                         />
                     </div>
                     <div className="form-group">
@@ -58,6 +59,8 @@ const Login = () => {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             disabled={loading}
+                            placeholder="Enter your password"
+                            autoComplete="current-password"
                         />
                     </div>
                     <button 

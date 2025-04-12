@@ -62,11 +62,11 @@ const Products = () => {
                 return product.image_url;
             }
             // Otherwise, prepend the API base URL
-            return `${process.env.REACT_APP_API_URL}${product.image_url}`;
+            return `http://localhost:8000${product.image_url}`;
         }
         // Fallback to category-based images
         const category = product.category?.toLowerCase() || 'default';
-        return `${process.env.REACT_APP_API_URL}/images/products/${category}.jpg`;
+        return `http://localhost:8000/images/products/${category}.jpg`;
     };
 
     if (loading) {

@@ -22,7 +22,7 @@ const PrivateRoute = ({ children, roles }) => {
   }
   
   if (roles && !roles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   
   return children;
@@ -37,7 +37,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/" element={
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={
               <PrivateRoute>
                 <Dashboard />
               </PrivateRoute>

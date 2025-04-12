@@ -1,10 +1,15 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_id: Optional[int] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    name: Optional[str] = None
+    account: Optional[Dict[str, Any]] = None
 
 class TokenData(BaseModel):
     email: Optional[str] = None

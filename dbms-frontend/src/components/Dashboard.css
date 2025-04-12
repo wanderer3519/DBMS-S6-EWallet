@@ -4,6 +4,39 @@
     margin: 0 auto;
 }
 
+/* Welcome Message Styling */
+.welcome-message {
+    background-color: #e0f7fa;
+    border: 1px solid #b2ebf2;
+    color: #00796b;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+.welcome-message h2 {
+    margin: 0 0 1rem 0;
+}
+
+.welcome-message button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.welcome-message button:hover {
+    background-color: #0056b3;
+}
+
+
 .success-message {
     background-color: #d4edda;
     color: #155724;
@@ -12,7 +45,7 @@
     margin: 20px;
     border-radius: 8px;
     text-align: center;
-    animation: fadeOut 1s ease-in-out 9s forwards; /* Optional fade out after 9s */
+    animation: fadeOut 1s ease-in-out 9s forwards; 
 }
 
 @keyframes fadeOut {
@@ -23,47 +56,45 @@
     }
 }
 
-.top-right {
+/* Balance Section */
+.balance-section {
+    background-color: #f1f1f1;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    text-align: center;
+}
+
+.balance-section h3 {
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+/* Balance Display */
+.balance-display {
     display: flex;
-    justify-content: flex-end;
-    padding: 1rem 2rem;
-    position: relative;
-    background-color: #f9f9f9;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
-.balance-wrapper {
-    position: relative;
-}
-
-.balance-toggle {
-    background-color: #007bff;
+.show-balance-btn {
+    background-color: #28a745;
     color: white;
-    padding: 0.6rem 1.2rem;
     border: none;
+    padding: 0.5rem 1rem;
     border-radius: 6px;
     cursor: pointer;
     font-size: 1rem;
-    font-weight: 600;
-    position: relative;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
 }
 
-.balance-popup {
-    position: absolute;
-    top: 120%;
-    right: 0;
-    background-color: white;
-    padding: 1rem;
-    border-radius: 8px;
-    box-shadow: 0px 4px 8px rgba(0,0,0,0.15);
-    z-index: 10;
-    white-space: nowrap;
+.show-balance-btn:hover {
+    background-color: #218838;
 }
-
-.balance-amount {
-    font-size: 1.25rem;
-    font-weight: bold;
-}
-
 
 .products-section {
     margin-top: 2rem;
@@ -87,37 +118,91 @@
     border-radius: 8px;
     padding: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .product-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .product-image {
     width: 100%;
     height: 200px;
-    object-fit: cover;
     border-radius: 4px;
     margin-bottom: 1rem;
+    overflow: hidden;
 }
 
-.product-card h3 {
+.product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.product-card:hover .product-image img {
+    transform: scale(1.05);
+}
+
+.product-card h4 {
     margin: 0.5rem 0;
     color: #333;
+    font-size: 1.2rem;
 }
 
-.product-price {
+.product-price-container {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+    gap: 0.5rem;
+}
+
+.price {
     font-weight: bold;
     color: #4CAF50;
     font-size: 1.2rem;
-    margin: 0.5rem 0;
+    margin: 0;
+}
+
+.mrp {
+    color: #888;
+    text-decoration: line-through;
+    font-size: 1rem;
+    margin: 0;
 }
 
 .product-description {
     color: #666;
     font-size: 0.9rem;
     margin: 0.5rem 0;
+    flex-grow: 1;
+}
+
+.add-to-cart-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    margin-top: auto;
+    transition: background-color 0.2s;
+}
+
+.add-to-cart-btn:hover {
+    background-color: #0056b3;
+}
+
+.no-products-message {
+    text-align: center;
+    padding: 2rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    margin: 1rem 0;
 }
 
 .error-message {

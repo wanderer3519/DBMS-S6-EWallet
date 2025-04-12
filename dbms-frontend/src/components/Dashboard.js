@@ -6,125 +6,129 @@ import './Dashboard.css';
 
 const Dashboard = () => {
     const [products, setProducts] = useState([]);
-    const [balance, setBalance] = useState(null);
+    const [balance, setBalance] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showBalance, setShowBalance] = useState(false);
     const [showWelcome, setShowWelcome] = useState(true);
+
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchDashboardData = async () => {
             if (!isAuthenticated || !user) {
+                console.warn('User not authenticated');
                 navigate('/login');
                 return;
             }
 
             try {
-                console.log(user.user_id);
-                // Fetch balance
-                const balanceResponse = await axios.get(`http://localhost:8000/accounts/${user.user_id}`, {
-                    headers: {
-                        'Authorization': `Bearer ${user.access_token}`
-                    }
-                });
-                setBalance(balanceResponse.data.balance);
+                // 1. Set balance from user.account
+                if (user.account && typeof user.account.balance === 'number') {
+                    setBalance(user.account.balance);
+                } else {
+                    console.warn('No account or balance info found');
+                    setBalance(0);
+                }
 
-                // Fetch products
-                const productsResponse = await axios.get('http://localhost:8000/products/', {
-                    headers: {
-                        'Authorization': `Bearer ${user.access_token}`
+                // 2. Fetch products
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                        throw new Error('No authentication token found');
                     }
-                });
-                setProducts(productsResponse.data);
+
+                    const productsResponse = await axios.get('http://localhost:8000/featured/products', {
+                        headers: {
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
+
+                    if (productsResponse.data) {
+                        setProducts(productsResponse.data);
+                    }
+                } catch (productError) {
+                    console.warn('Error fetching products:', productError);
+                    // Continue loading the dashboard even if products fail to load
+                    setProducts([]);
+                }
+                
+                // Set loading to false only after all operations are complete
                 setLoading(false);
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                if (error.response?.status === 401) {
+            } catch (err) {
+                console.error('Error fetching dashboard data:', err);
+                if (err.response?.status === 401) {
                     navigate('/login');
                 } else {
-                    setError('Failed to load data. Please try again.');
+                    setError('Failed to load dashboard data. Please try again.');
                 }
                 setLoading(false);
             }
         };
 
-        fetchData();
-    }, [navigate, user, isAuthenticated]);
+        fetchDashboardData();
+    }, [user, isAuthenticated, navigate]);
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setShowWelcome(false);
-        }, 10000); // 10 seconds
-
-        return () => clearTimeout(timer); // Clean up
-    }, []);
-
-    if (!isAuthenticated) {
-        return null; // Will redirect in useEffect
-    }
+    if (loading) return <div className="loading">Loading...</div>;
+    if (error) return <div className="error">{error}</div>;
 
     return (
-        <div className="dashboard-container">
-            {/* Top Right Balance */}
-            <div className="top-right">
-                <div className="balance-wrapper">
+        <div className="dashboard">
+            {/* Welcome Message */}
+            {showWelcome && (
+                <div className="welcome-message">
+                    <h2>Welcome, {user?.name || 'User'}!</h2>
+                    <button onClick={() => setShowWelcome(false)}>Close</button>
+                </div>
+            )}
+
+            {/* Balance Section */}
+            <div className="balance-section">
+                <h3>Your Balance</h3>
+                <div className="balance-display">
+                    {showBalance ? (
+                        <span className="balance-amount">₹{balance.toFixed(2)}</span>
+                    ) : (
+                        <span className="balance-amount">••••••</span>
+                    )}
                     <button
-                        className="balance-toggle"
-                        onClick={() => setShowBalance((prev) => !prev)}
-                        onMouseEnter={() => setShowBalance(true)}
-                        onMouseLeave={() => setShowBalance(false)}
+                        className="show-balance-btn"
+                        onClick={() => setShowBalance(!showBalance)}
                     >
-                        💰 Check Balance
-                        {showBalance && balance !== null && (
-                            <div className="balance-popup">
-                                <p
-                                    className="balance-amount"
-                                    style={{
-                                        color: balance < 0 ? 'red' : 'green'
-                                    }}
-                                >
-                                    ${balance?.toFixed ? balance.toFixed(2) : "0.00"}
-                                </p>
-                            </div>
-                        )}
+                        {showBalance ? 'Hide Balance' : 'Show Balance'}
                     </button>
                 </div>
             </div>
 
-            {/* Welcome Message */}
-            {showWelcome && (
-                <div className="success-message">
-                    <h2>Welcome to E-Wallet!</h2>
-                    <p>You have successfully logged in.</p>
-                </div>
-            )}
-
             {/* Products Section */}
             <div className="products-section">
-                <h2>Available Products</h2>
-                {loading ? (
-                    <p>Loading products...</p>
-                ) : error ? (
-                    <p className="error-message">{error}</p>
-                ) : products.length > 0 ? (
+                <h3>Available Products</h3>
+                {products.length > 0 ? (
                     <div className="products-grid">
-                        {products.map((product) => (
-                            <div key={product.id} className="product-card">
-                                <img 
-                                    src={product.image_url || 'default-product.png'} 
-                                    alt={product.name}
-                                    className="product-image"
-                                />
-                                <h3>{product.name}</h3>
-                                <p className="product-price">${product.price}</p>
+                        {products.map(product => (
+                            <div key={product.product_id || product.id} className="product-card">
+                                {product.image_url && (
+                                    <div className="product-image">
+                                        <img src={product.image_url} alt={product.name} />
+                                    </div>
+                                )}
+                                <h4>{product.name}</h4>
                                 <p className="product-description">{product.description}</p>
+                                <div className="product-price-container">
+                                    <p className="price">₹{product.price}</p>
+                                    {product.mrp > product.price && (
+                                        <p className="mrp">₹{product.mrp}</p>
+                                    )}
+                                </div>
+                                <button className="add-to-cart-btn">Add to Cart</button>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <p>No products available at the moment.</p>
+                    <div className="no-products-message">
+                        <p>No products available at the moment. Check back later!</p>
+                    </div>
                 )}
             </div>
         </div>

@@ -31,7 +31,7 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:3000").split(","),
+    allow_origins=["http://localhost:3000"],  # React frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -260,36 +260,64 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/login", response_model=Token)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    # Find user by email
-    users = db.query(Users).filter(Users.email == user_data.email).first()
-    if not users:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+    try:
+        # Find user by email
+        users = db.query(Users).filter(Users.email == user_data.email).first()
+        if not users:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        
+        # Verify password
+        if not verify_password(user_data.password, users.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": users.email}
         )
-    # Verify password
-    if not verify_password(user_data.password, users.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+        
+        # Log login
+        log = Logs(
+            user_id=users.user_id,
+            action="user_login",
+            description=f"User {users.email} logged in",
+            created_at=datetime.now()
         )
-    
-    # Create access token
-    access_token = create_access_token(
-        data={"sub": users.email}
-    )
-    
-    # Log login
-    log = Logs(
-        user_id=users.user_id,
-        action="user_login",
-        description=f"User {users.email} logged in",
-        created_at=datetime.now()
-    )
-    db.add(log)
-    db.commit()
-    
-    return {"access_token": access_token, "token_type": "bearer", "user_id": users.user_id}
+        db.add(log)
+        db.commit()
+        
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == users.user_id).first()
+        print("accesstoken: ",access_token)
+        print("user: ",users.user_id)
+        print("email: ",users.email)
+        print("role: ",users.role.value)
+        print("name: ",users.full_name)
+        print("account: ",account.account_id)
+        print("balance: ",account.balance)
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user_id": users.user_id,
+            "email": users.email,
+            "role": users.role.value,
+            "name": users.full_name,
+            "account": {
+                "id": account.account_id if account else None,
+                "balance": float(account.balance) if account else 0.0
+            }
+        }
+    except Exception as e:
+        print(f"Login error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during login"
+        )
 
 # Account Management Endpoints
 @app.post("/accounts/", response_model=AccountResponse)
@@ -759,16 +787,89 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
         "accounts": accounts
     }
 
-@app.get("/products/featured", response_model=List[ProductResponse])
+@app.get("/featured/products", response_model=List[ProductResponse])
 def get_featured_products(db: Session = Depends(get_db)):
-    # Get products with discount (where price < mrp)
-    featured_products = db.query(Product).filter(
-        Product.price < Product.mrp,
-        Product.status == ProductStatus.active,
-        Product.stock > 0
-    ).order_by(Product.mrp - Product.price).limit(10).all()
-    
-    return featured_products
+    try:
+        # Get products with discount (where price < mrp)
+        featured_products = db.query(Product).filter(
+            Product.price < Product.mrp,
+            Product.status == ProductStatus.active,
+            Product.stock > 0
+        ).order_by(Product.mrp - Product.price).limit(10).all()
+        if featured_products:
+            return featured_products
+        else:
+            # If no featured products found, return some sample products
+            # This is temporary for frontend testing
+            sample_products = [
+                {
+                    "product_id": 1,
+                    "name": "Smartphone X",
+                    "description": "Latest smartphone with amazing features",
+                    "price": 799.99,
+                    "mrp": 999.99,
+                    "stock": 10,
+                    "image_url": "https://via.placeholder.com/300",
+                    "status": ProductStatus.active
+                },
+                {
+                    "product_id": 2,
+                    "name": "Wireless Earbuds",
+                    "description": "High quality sound with noise cancellation",
+                    "price": 129.99,
+                    "mrp": 149.99,
+                    "stock": 15,
+                    "image_url": "https://via.placeholder.com/300",
+                    "status": ProductStatus.active
+                },
+                {
+                    "product_id": 3,
+                    "name": "Smart Watch",
+                    "description": "Track your fitness and stay connected",
+                    "price": 249.99,
+                    "mrp": 299.99,
+                    "stock": 5,
+                    "image_url": "https://via.placeholder.com/300",
+                    "status": ProductStatus.active
+                }
+            ]
+            return sample_products
+    except Exception as e:
+        print(f"Error fetching featured products: {e}")
+        # Return sample products for frontend testing
+        sample_products = [
+            {
+                "product_id": 1,
+                "name": "Smartphone X",
+                "description": "Latest smartphone with amazing features",
+                "price": 799.99,
+                "mrp": 999.99,
+                "stock": 10,
+                "image_url": "https://via.placeholder.com/300",
+                "status": ProductStatus.active
+            },
+            {
+                "product_id": 2,
+                "name": "Wireless Earbuds",
+                "description": "High quality sound with noise cancellation",
+                "price": 129.99,
+                "mrp": 149.99,
+                "stock": 15,
+                "image_url": "https://via.placeholder.com/300",
+                "status": ProductStatus.active
+            },
+            {
+                "product_id": 3,
+                "name": "Smart Watch",
+                "description": "Track your fitness and stay connected",
+                "price": 249.99,
+                "mrp": 299.99,
+                "stock": 5,
+                "image_url": "https://via.placeholder.com/300",
+                "status": ProductStatus.active
+            }
+        ]
+        return sample_products
 
 @app.get("/products/category/{category}", response_model=List[ProductResponse])
 async def get_products_by_category(category: str, db: Session = Depends(get_db)):
