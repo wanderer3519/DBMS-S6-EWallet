@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Users
+from models import UserRole, UserStatus, Users
 from schemas import TokenData
 import os
 from dotenv import load_dotenv
@@ -57,16 +57,16 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 async def get_current_active_user(current_user: Users = Depends(get_current_user)) -> Users:
-    if not current_user.is_active:
+    if not current_user.status == UserStatus.active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 async def get_current_admin_user(current_user: Users = Depends(get_current_active_user)) -> Users:
-    if current_user.role != "admin":
+    if current_user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
 async def get_current_merchant_user(current_user: Users = Depends(get_current_active_user)) -> Users:
-    if current_user.role != "merchant":
+    if current_user.role != UserRole.merchant:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
