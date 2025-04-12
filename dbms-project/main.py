@@ -1005,15 +1005,13 @@ async def get_merchant_products(
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.role != "merchant":
+    if current_user.role != UserRole.merchant:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only merchants can access their products"
         )
     
-    products = db.query(Product).filter(
-        Product.merchant_id == current_user.user_id
-    ).all()
+    products = db.query(Product).filter(Product.merchant_id == current_user.user_id).all()
     return products
 
 @app.post("/api/merchant/products/upload-image")
@@ -1040,15 +1038,39 @@ async def create_merchant_product(
     price: float = Form(...),
     mrp: float = Form(...),
     stock: int = Form(...),
+    business_category: str = Form(...),
     image: UploadFile = File(...),
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
     try:
         # Get merchant
-        merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
+        merchant = db.query(Merchants).filter(
+            Merchants.user_id == current_user.user_id,
+            Merchants.business_category == business_category
+        ).first()
+        
         if not merchant:
-            raise HTTPException(status_code=404, detail="Merchant profile not found")
+            # Create a new merchant entry for this business category
+            merchant = Merchants(
+                user_id=current_user.user_id,
+                merchant_id=current_user.user_id,  # Using user_id as merchant_id
+                business_name=current_user.full_name,
+                business_category=business_category,
+                name=current_user.full_name,
+                email=current_user.email,
+                contact=current_user.phone or "",  # Use phone from Users table
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            db.add(merchant)
+            db.flush()  # Get the merchant_id without committing
+
+        # Reset the products sequence
+        try:
+            db.execute(text("SELECT setval('products_product_id_seq', (SELECT COALESCE(MAX(product_id), 0) FROM products))"))
+        except Exception as e:
+            print(f"Error resetting sequence: {e}")
 
         # Save the image
         image_url = await save_uploaded_file(image)
@@ -1061,18 +1083,22 @@ async def create_merchant_product(
             price=price,
             mrp=mrp,
             stock=stock,
+            business_category=business_category,
             image_url=image_url,
             status=ProductStatus.active,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
-
+        
         db.add(product)
         db.commit()
         db.refresh(product)
-
+        
         return product
     except Exception as e:
+        # If there was an error, try to delete the uploaded file if it exists
+        if 'image_url' in locals():
+            delete_file(image_url)
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1320,32 +1346,46 @@ async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
     # Hash the password
     hashed_password = get_password_hash(user.password)
     
-    # Create new user
-    db_user = Users(
-        email=user.email,
-        full_name=user.full_name,
-        phone=user.contact or "",  # Use empty string if phone is not provided
-        password_hash=hashed_password
-    )
-    db.add(db_user)
-    db.flush()  # Flush to get the user_id
+    try:
+        # Create new user
+        db_user = Users(
+            email=user.email,
+            full_name=user.full_name,
+            password_hash=hashed_password,
+            role=UserRole.merchant,
+            status=UserStatus.active,
+            phone=user.contact,  # Store contact as phone
+            created_at=datetime.now()
+        )
+        db.add(db_user)
+        db.flush()  # Flush to get the user_id
+        
+        # Create merchant profile with required fields
+        merchant = Merchants(
+            user_id=db_user.user_id,
+            merchant_id=db_user.user_id,  # Use user_id as merchant_id
+            business_name=user.full_name,  # Use full_name as business_name
+            business_category="General",  # Default category
+            name=user.full_name,
+            email=user.email,
+            contact=user.contact or "",  # Use contact from user input
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        db.add(merchant)
+        db.commit()
+        db.refresh(db_user)
+        
+        # Create access token
+        access_token = create_access_token(data={"sub": user.email})
+        return {"access_token": access_token, "token_type": "bearer"}
     
-    # Create merchant profile with required fields
-    merchant = Merchants(
-        user_id=db_user.user_id,
-        business_name=user.full_name,  # Use full_name as business_name
-        business_category="General",  # Default category
-        name=user.full_name,
-        email=user.email,
-        contact=user.contact or ""  # Use empty string if phone is not provided
-    )
-    db.add(merchant)
-    db.commit()
-    db.refresh(db_user)
-    
-    # Create access token
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating merchant: {str(e)}"
+        )
 
 @app.post("/merchant/login", response_model=Token)
 def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
@@ -1371,47 +1411,49 @@ def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
 
 # Merchant Product Management
-@app.get("/merchant/products", response_model=List[ProductResponse])
-async def get_merchant_products(
+@app.get("/api/merchant/{merchant_id}/logs")
+async def get_merchant_logs(
+    merchant_id: int,
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
-    products = db.query(Product).filter(Product.merchant_id == current_user.user_id).all()
-    return products
-
-@app.post("/merchant/products", response_model=ProductResponse)
-async def create_merchant_product(
-    name: str = Form(...),
-    description: str = Form(...),
-    price: float = Form(...),
-    mrp: float = Form(...),
-    stock: int = Form(...),
-    image: UploadFile = File(...),
-    current_user: Users = Depends(get_current_merchant_user),
-    db: Session = Depends(get_db)
-):
-    print(f"Current user: {current_user}")
-    try:
-        merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
-        if not merchant:
-            raise HTTPException(status_code=404, detail="Merchant profile not found")
-        image_url = await save_uploaded_file(image)
-        product = Product(
-            merchant_id=merchant.merchant_id,
-            name=name,
-            description=description,
-            price=price,
-            mrp=mrp,
-            stock=stock,
-            image_url=image_url,
-            status=ProductStatus.active,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+    if current_user.user_id != merchant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Can only access your own logs"
         )
-        db.add(product)
-        db.commit()
-        db.refresh(product)
-        return product
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Get all products for this merchant
+    products = db.query(Product).filter(Product.merchant_id == merchant_id).all()
+    product_ids = [p.product_id for p in products]
+    
+    # Query logs for these products
+    logs = []
+    for product in products:
+        # Get creation log
+        logs.append({
+            "product_name": product.name,
+            "action": "Product Created",
+            "business_category": product.business_category,
+            "price": product.price,
+            "stock": product.stock,
+            "description": product.description,
+            "timestamp": product.created_at
+        })
+        
+        # Get update logs if the product was updated
+        if product.updated_at > product.created_at:
+            logs.append({
+                "product_name": product.name,
+                "action": "Product Updated",
+                "business_category": product.business_category,
+                "price": product.price,
+                "stock": product.stock,
+                "description": product.description,
+                "timestamp": product.updated_at
+            })
+    
+    # Sort logs by timestamp (newest first)
+    logs.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    return logs

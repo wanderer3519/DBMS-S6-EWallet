@@ -9,7 +9,10 @@ import Products from './components/Products';
 import Cart from './components/Cart';
 import Orders from './components/Orders';
 import MerchantDashboard from './components/MerchantDashboard';
+import MerchantLogin from './components/MerchantLogin';
+import MerchantSignup from './components/MerchantSignup';
 import AdminDashboard from './components/AdminDashboard';
+import MerchantLogs from './components/MerchantLogs';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const PrivateRoute = ({ children, roles }) => {
@@ -37,6 +40,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/merchant/login" element={<MerchantLogin />} />
+            <Route path="/merchant/signup" element={<MerchantSignup />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={
               <PrivateRoute>
@@ -59,6 +64,8 @@ function App() {
                 <MerchantDashboard />
               </PrivateRoute>
             } />
+            <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
+            <Route path="/merchant/logs" element={<MerchantLogs />} />
             <Route path="/admin" element={
               <PrivateRoute roles={['admin']}>
                 <AdminDashboard />

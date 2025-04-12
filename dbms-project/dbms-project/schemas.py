@@ -19,8 +19,15 @@
 #     full_name: str
 #     phone: Optional[str] = None
 
-# class UserCreate(UserBase):
+# class UserCreate(BaseModel):
+#     full_name: str
+#     email: EmailStr
 #     password: str
+#     contact: Optional[str] = None
+#     role: UserRole = UserRole.customer
+
+#     class Config:
+#         from_attributes = True
 
 # class User(UserBase):
 #     id: int
