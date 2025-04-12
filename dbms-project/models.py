@@ -62,6 +62,7 @@ class Users(Base):
     full_name = Column(String)
     role = Column(Enum(UserRole))
     status = Column(Enum(UserStatus))
+    phone = Column(String(12), nullable=True)
     created_at = Column(TIMESTAMP)
     password_hash = Column(String)
 

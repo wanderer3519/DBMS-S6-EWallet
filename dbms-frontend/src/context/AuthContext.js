@@ -20,7 +20,11 @@ export const AuthProvider = ({ children }) => {
             
             // Verify token by making a request to get user data
             try {
-              const response = await axios.get(`http://localhost:8000/user/profile/${parsedUser.user_id}`);
+              const endpoint = parsedUser.role === 'merchant' 
+                ? `http://localhost:8000/merchant/profile/${parsedUser.user_id}`
+                : `http://localhost:8000/user/profile/${parsedUser.user_id}`;
+              
+              const response = await axios.get(endpoint);
               if (response.data) {
                 setUser({ ...parsedUser, ...response.data });
               } else {
@@ -76,6 +80,48 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Login error:', error);
       if (error.response) {
+        console.log("error.response", error.response);
+        if (error.response.status === 401) {
+          return { success: false, error: 'Invalid email or password' };
+        }
+        if (error.response.status === 500) {
+          return { success: false, error: 'Server error. Please try again later.' };
+        }
+        return { success: false, error: error.response.data.detail || 'Login failed' };
+      }
+      return { success: false, error: 'Network error. Please check your connection.' };
+    }
+  };
+
+  const merchantLogin = async (email, password) => {
+    try {
+      const response = await axios.post('http://localhost:8000/merchant/login', {
+        email,
+        password
+      });
+
+      if (response.data.access_token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+        
+        const userData = {
+          user_id: response.data.user_id,
+          email: response.data.email,
+          name: response.data.name,
+          role: 'merchant',
+          business_name: response.data.business_name,
+          business_category: response.data.business_category
+        };
+
+        localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        setToken(response.data.access_token);
+        return { success: true };
+      }
+      return { success: false, error: 'Invalid response from server' };
+    } catch (error) {
+      console.error('Merchant login error:', error);
+      if (error.response) {
         if (error.response.status === 401) {
           return { success: false, error: 'Invalid email or password' };
         }
@@ -90,14 +136,17 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
+    setToken(null);
   };
 
   const value = {
     user,
     loading,
     login,
+    merchantLogin,
     logout,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',

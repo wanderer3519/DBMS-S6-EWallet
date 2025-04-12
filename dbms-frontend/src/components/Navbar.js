@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navbar as BootstrapNavbar, Nav, Container, Button } from 'react-bootstrap';
+import { Navbar as BootstrapNavbar, Nav, Container, Button, Dropdown } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -24,10 +24,10 @@ const Navbar = () => {
               <Nav.Link as={Link} to="/cart">Cart</Nav.Link>
             )}
             {user && user.role === 'merchant' && (
-              <Nav.Link as={Link} to="/merchant-dashboard">Merchant Dashboard</Nav.Link>
+              <Nav.Link as={Link} to="/merchant">Merchant Dashboard</Nav.Link>
             )}
             {user && user.role === 'admin' && (
-              <Nav.Link as={Link} to="/admin-dashboard">Admin Dashboard</Nav.Link>
+              <Nav.Link as={Link} to="/admin">Admin Dashboard</Nav.Link>
             )}
           </Nav>
           <Nav>
@@ -38,8 +38,24 @@ const Navbar = () => {
               </>
             ) : (
               <>
-                <Nav.Link as={Link} to="/login">Login</Nav.Link>
-                <Nav.Link as={Link} to="/signup">Signup</Nav.Link>
+                <Dropdown as={Nav.Item}>
+                  <Dropdown.Toggle as={Nav.Link} id="user-dropdown">
+                    User
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item as={Link} to="/login">Login</Dropdown.Item>
+                    <Dropdown.Item as={Link} to="/signup">Signup</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
+                <Dropdown as={Nav.Item}>
+                  <Dropdown.Toggle as={Nav.Link} id="merchant-dropdown">
+                    Merchant
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item as={Link} to="/merchant/login">Login</Dropdown.Item>
+                    <Dropdown.Item as={Link} to="/merchant/signup">Signup</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               </>
             )}
           </Nav>

@@ -20,8 +20,8 @@ async def save_uploaded_file(file: UploadFile) -> str:
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
         
         # Save the file
+        content = await file.read()
         async with aiofiles.open(file_path, 'wb') as out_file:
-            content = await file.read()
             await out_file.write(content)
         
         # Return the relative path that can be used in URLs
