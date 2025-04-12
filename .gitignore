@@ -4,3 +4,4 @@ dbms-project/dbms/
 dbms-project/comments.txt/
 *.env
 dbms-frontend/node_modules/
+dbms-project/node_modules/
