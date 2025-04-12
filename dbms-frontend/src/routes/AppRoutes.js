@@ -5,6 +5,7 @@ import Login from '../components/Login';
 import Signup from '../components/Signup';
 import Products from '../components/Products';
 import Cart from '../components/Cart';
+import Dashboard from '../components/Dashboard';
 import MerchantDashboard from '../components/MerchantDashboard';
 import AdminDashboard from '../components/AdminDashboard';
 import NoPage from '../components/NoPage';
@@ -34,7 +35,12 @@ const AppRoutes = () => {
           <Products />
         </PrivateRoute>
       } />
-      
+      <Route path="/dashboard" element={
+        <PrivateRoute>
+          <Dashboard />
+        </PrivateRoute>
+      } />
+
       <Route path="/cart" element={
         <PrivateRoute>
           <Cart />

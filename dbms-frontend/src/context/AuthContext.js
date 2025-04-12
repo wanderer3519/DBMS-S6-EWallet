@@ -6,40 +6,85 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(null);
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        if (parsedUser.access_token) {
-          axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.access_token}`;
-          setUser(parsedUser);
+    const initializeAuth = async () => {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          if (parsedUser.access_token && parsedUser.user_id) {
+            // Set default authorization header
+            axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.access_token}`;
+            
+            // Verify token by making a request to get user data
+            try {
+              const response = await axios.get(`http://localhost:8000/user/profile/${parsedUser.user_id}`);
+              if (response.data) {
+                setUser({ ...parsedUser, ...response.data });
+              } else {
+                throw new Error('Invalid user data');
+              }
+            } catch (error) {
+              console.error('Error verifying token:', error);
+              // If token is invalid, clear user data
+              localStorage.removeItem('user');
+              delete axios.defaults.headers.common['Authorization'];
+            }
+          } else {
+            // If user data is incomplete, clear it
+            localStorage.removeItem('user');
+          }
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+          localStorage.removeItem('user');
         }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        localStorage.removeItem('user');
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:8000/login', { email, password });
-      if (response.data && response.data.access_token) {
-        localStorage.setItem('user', JSON.stringify(response.data));
+      const response = await axios.post('http://localhost:8000/login', {
+        email,
+        password
+      });
+
+      if (response.data.access_token) {
+        // Set the authorization header for all future requests
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
-        console.log(response.data);
-        setUser(response.data);
-        return { success: true, data: response.data };
+        
+        const userData = {
+          user_id: response.data.user_id,
+          email: response.data.email,
+          name: response.data.name,
+          role: response.data.role,
+          account: response.data.account
+        };
+
+        localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        setToken(response.data.access_token);
+        return { success: true };
       }
       return { success: false, error: 'Invalid response from server' };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.response?.data?.detail || 'Login failed' 
-      };
+      console.error('Login error:', error);
+      if (error.response) {
+        if (error.response.status === 401) {
+          return { success: false, error: 'Invalid email or password' };
+        }
+        if (error.response.status === 500) {
+          return { success: false, error: 'Server error. Please try again later.' };
+        }
+        return { success: false, error: error.response.data.detail || 'Login failed' };
+      }
+      return { success: false, error: 'Network error. Please check your connection.' };
     }
   };
 
