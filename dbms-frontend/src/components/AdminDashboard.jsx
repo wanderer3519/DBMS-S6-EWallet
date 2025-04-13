@@ -52,6 +52,7 @@ const AdminDashboard = () => {
     useEffect(() => {
         fetchLogs();
         fetchStats();
+        // eslint-disable-next-line
     }, [dateFilter, navigate]);
 
     if (loading) {

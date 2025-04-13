@@ -1,5 +1,5 @@
 import React from 'react';
-import './ProductGrid.css'; // Import your CSS file for styling
+import '../styles/ProductGrid.css'; // Import your CSS file for styling
 
 const ProductGrid = ({ products }) => {
   return (

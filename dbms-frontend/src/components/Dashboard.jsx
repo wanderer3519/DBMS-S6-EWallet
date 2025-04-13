@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import './Dashboard.css';
+import '../styles/Dashboard.css';
 import ProductGrid from './ProductGrid';
 
 const Dashboard = () => {
@@ -34,7 +34,7 @@ const Dashboard = () => {
           }
         });
 
-        console.log(response.data); // current user data
+        // console.log(response.data); // current user data
 
 
 
@@ -125,18 +125,7 @@ const Dashboard = () => {
           <p className="error-message">{error}</p>
         ) : products.length > 0 ? (
           <div className="dashboard-container">
-            {/* {products.map((product) => (
-              <div key={product.product_id} className="product-card p-2">
-                <img
-                  src={product.image_url || 'default-product.png'}
-                  alt={product.name}
-                  className="product-image"
-                />
-                <h3>{product.name}</h3>
-                <p className="product-price">${product.price}</p>
-                <p className="product-description">{product.description}</p>
-              </div>
-            ))} */}
+            
 
             <ProductGrid products={products} />
 
