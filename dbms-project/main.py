@@ -174,9 +174,9 @@ async def read_users_me(current_user: Users = Depends(get_current_user)):
         full_name=current_user.full_name,
     )
 
-@app.get("/api/user/test", response_model=UserView)
-def test_user():
-    return UserView(user_id=1, email="test@example.com", full_name="Test User")
+# @app.get("/api/user/test", response_model=UserView)
+# def test_user():
+#     return UserView(user_id=1, email="test@example.com", full_name="Test User")
 
 
 @app.post("/api/token")
