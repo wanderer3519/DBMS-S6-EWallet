@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from sqlalchemy import func
 import schemas
 from file_upload import save_uploaded_file, delete_file
+import base64
 
 # Load environment variables
 load_dotenv()
@@ -111,6 +112,7 @@ class ProductCreate(BaseModel):
     mrp: float
     stock: int
     image_url: str
+    business_category: str
 
 class ProductResponse(BaseModel):
     product_id: int
@@ -121,6 +123,9 @@ class ProductResponse(BaseModel):
     stock: int
     image_url: str
     status: ProductStatus
+    business_category: str
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
@@ -218,7 +223,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             password_hash=hashed_password,
             role=user.role,
             status=UserStatus.active,
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         
         db.add(db_user)
@@ -229,7 +234,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             user_id=db_user.user_id,
             account_type=AccountType.user,
             balance=0.0,
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         db.add(account)
         
@@ -238,7 +243,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             user_id=db_user.user_id,
             action="user_creation",
             description=f"User {user.email} created with role {user.role}",
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         db.add(log)
         
@@ -288,7 +293,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
             user_id=users.user_id,
             action="user_login",
             description=f"User {users.email} logged in",
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         db.add(log)
         db.commit()
@@ -329,7 +334,7 @@ def create_account(account: AccountCreate, user_id: int, db: Session = Depends(g
         user_id=user_id,
         account_type=account.account_type,
         balance=0.0,
-        created_at=datetime.now()
+        created_at=datetime.utcnow()
     )
     
     db.add(db_account)
@@ -341,7 +346,7 @@ def create_account(account: AccountCreate, user_id: int, db: Session = Depends(g
         user_id=user_id,
         action="account_creation",
         description=f"Account {db_account.account_id} created for user {user.email}",
-        created_at=datetime.now()
+        created_at=datetime.utcnow()
     )
     db.add(log)
     db.commit()
@@ -366,7 +371,7 @@ def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)
         amount=amount,
         transaction_type=TransactionType.top_up,
         status=TransactionStatus.completed,
-        created_at=datetime.now()
+        created_at=datetime.utcnow()
     )
     
     db.add(transaction)
@@ -379,7 +384,7 @@ def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)
         user_id=account.user_id,
         action="account_top_up",
         description=f"Account {account_id} topped up with {amount}",
-        created_at=datetime.now()
+        created_at=datetime.utcnow()
     )
     db.add(log)
     
@@ -402,7 +407,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
             amount=transaction.amount,
             transaction_type=transaction.transaction_type,
             status=TransactionStatus.pending,
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         
         db.add(db_transaction)
@@ -414,7 +419,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
             user_id=account.user_id,
             action="transaction_creation",
             description=f"Transaction {db_transaction.transaction_id} created for account {transaction.account_id}",
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         db.add(log)
         db.commit()
@@ -470,21 +475,58 @@ def process_withdrawal(account_id: int, amount: float, db: Session = Depends(get
     
 # Product Endpoints
 @app.post("/products/", response_model=ProductResponse)
-def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-    db_product = Product(
-        name=product.name,
-        description=product.description,
-        price=product.price,
-        mrp=product.mrp,
-        stock=product.stock,
-        image_url=product.image_url,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
-    )
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
+async def create_product(
+    product: ProductCreate,
+    merchant_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Validate merchant exists
+        merchant = db.query(Merchants).filter(Merchants.user_id == merchant_id).first()
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant not found")
+
+        # Validate business category
+        if not product.business_category:
+            raise HTTPException(status_code=400, detail="Business category is required")
+
+        # Create product object
+        db_product = Product(
+            name=product.name,
+            description=product.description,
+            price=product.price,
+            mrp=product.mrp,
+            stock=product.stock,
+            business_category=product.business_category,
+            merchant_id=merchant_id,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+
+        # Save product
+        db.add(db_product)
+        db.commit()
+        db.refresh(db_product)
+
+        # Handle image upload if provided
+        if product.image_url:
+            try:
+                image_data = base64.b64decode(product.image_url.split(',')[1])
+                image_path = f"uploads/{db_product.product_id}.jpg"
+                with open(image_path, "wb") as f:
+                    f.write(image_data)
+                db_product.image_url = f"/uploads/{db_product.product_id}.jpg"
+                db.commit()
+            except Exception as e:
+                # Log the error but don't fail the product creation
+                print(f"Error saving image: {str(e)}")
+
+        return db_product
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/products/", response_model=List[ProductResponse])
 def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -492,10 +534,15 @@ def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
     return products
 
 @app.get("/products/{product_id}", response_model=ProductResponse)
-def get_product(product_id: int, db: Session = Depends(get_db)):
+async def get_product(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.product_id == product_id).first()
+    
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    
     return product
 
 @app.get("/products/merchant/{merchant_id}", response_model=List[ProductResponse])
@@ -519,7 +566,7 @@ async def upload_product_image(
     
     # Generate unique filename
     file_extension = file.filename.split(".")[-1]
-    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{current_user.id}.{file_extension}"
+    filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{current_user.id}.{file_extension}"
     file_path = os.path.join("uploads", filename)
     
     # Save the file
@@ -535,7 +582,7 @@ def add_to_cart(item: CartItemCreate, user_id: int, db: Session = Depends(get_db
     # Get or create cart
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
     if not cart:
-        cart = Cart(user_id=user_id, created_at=datetime.now(), updated_at=datetime.now())
+        cart = Cart(user_id=user_id, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
         db.add(cart)
         db.commit()
         db.refresh(cart)
@@ -555,14 +602,14 @@ def add_to_cart(item: CartItemCreate, user_id: int, db: Session = Depends(get_db
     
     if cart_item:
         cart_item.quantity += item.quantity
-        cart_item.updated_at = datetime.now()
+        cart_item.updated_at = datetime.utcnow()
     else:
         cart_item = CartItem(
             cart_id=cart.cart_id,
             product_id=item.product_id,
             quantity=item.quantity,
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
         db.add(cart_item)
     
@@ -581,7 +628,7 @@ def add_to_cart(item: CartItemCreate, user_id: int, db: Session = Depends(get_db
         user_id=user_id,
         action="cart_update",
         description=f"User {user_id} added product {item.product_id} to cart",
-        created_at=datetime.now()
+        created_at=datetime.utcnow()
     )
     db.add(log)
     db.commit()
@@ -654,8 +701,8 @@ def create_order(order: OrderCreate, user_id: int, db: Session = Depends(get_db)
         account_id=order.account_id,
         total_amount=total,
         status=OrderStatus.pending,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
     db.add(db_order)
     db.commit()
@@ -668,11 +715,11 @@ def create_order(order: OrderCreate, user_id: int, db: Session = Depends(get_db)
             product_id=product.product_id,
             quantity=quantity,
             price_at_time=product.price,
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         db.add(order_item)
         product.stock -= quantity
-        product.updated_at = datetime.now()
+        product.updated_at = datetime.utcnow()
     
     # Update account balance
     account.balance -= total
@@ -683,7 +730,7 @@ def create_order(order: OrderCreate, user_id: int, db: Session = Depends(get_db)
         amount=total,
         transaction_type=TransactionType.purchase,
         status=TransactionStatus.completed,
-        created_at=datetime.now()
+        created_at=datetime.utcnow()
     )
     db.add(transaction)
     
@@ -695,7 +742,7 @@ def create_order(order: OrderCreate, user_id: int, db: Session = Depends(get_db)
         user_id=user_id,
         action="order_creation",
         description=f"Order {db_order.order_id} created for user {user_id} with total amount {total}",
-        created_at=datetime.now()
+        created_at=datetime.utcnow()
     )
     db.add(log)
     
@@ -1052,6 +1099,7 @@ async def create_merchant_product(
         
         if not merchant:
             # Create a new merchant entry for this business category
+            current_time = datetime.utcnow()
             merchant = Merchants(
                 user_id=current_user.user_id,
                 merchant_id=current_user.user_id,  # Using user_id as merchant_id
@@ -1060,8 +1108,8 @@ async def create_merchant_product(
                 name=current_user.full_name,
                 email=current_user.email,
                 contact=current_user.phone or "",  # Use phone from Users table
-                created_at=datetime.now(),
-                updated_at=datetime.now()
+                created_at=current_time,
+                updated_at=current_time
             )
             db.add(merchant)
             db.flush()  # Get the merchant_id without committing
@@ -1075,7 +1123,8 @@ async def create_merchant_product(
         # Save the image
         image_url = await save_uploaded_file(image)
 
-        # Create product
+        # Create product with current timestamp
+        current_time = datetime.utcnow()
         product = Product(
             merchant_id=merchant.merchant_id,
             name=name,
@@ -1086,8 +1135,8 @@ async def create_merchant_product(
             business_category=business_category,
             image_url=image_url,
             status=ProductStatus.active,
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            created_at=current_time,
+            updated_at=current_time
         )
         
         db.add(product)
@@ -1110,6 +1159,7 @@ async def update_merchant_product(
     price: Optional[float] = Form(None),
     mrp: Optional[float] = Form(None),
     stock: Optional[int] = Form(None),
+    business_category: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
@@ -1139,6 +1189,8 @@ async def update_merchant_product(
             product.mrp = mrp
         if stock is not None:
             product.stock = stock
+        if business_category is not None:
+            product.business_category = business_category
 
         # Handle image update
         if image is not None:
@@ -1149,7 +1201,13 @@ async def update_merchant_product(
             # Save new image
             product.image_url = await save_uploaded_file(image)
 
+        # Update timestamp
         product.updated_at = datetime.utcnow()
+        
+        # Keep the original created_at timestamp
+        if not product.created_at:
+            product.created_at = datetime.utcnow()
+
         db.commit()
         db.refresh(product)
 
@@ -1332,7 +1390,10 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
         Product.status == ProductStatus.active
     ).first()
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
     return product
 
 # Merchant Signup and Login
@@ -1355,7 +1416,7 @@ async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
             role=UserRole.merchant,
             status=UserStatus.active,
             phone=user.contact,  # Store contact as phone
-            created_at=datetime.now()
+            created_at=datetime.utcnow()
         )
         db.add(db_user)
         db.flush()  # Flush to get the user_id
@@ -1369,8 +1430,8 @@ async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
             name=user.full_name,
             email=user.email,
             contact=user.contact or "",  # Use contact from user input
-            created_at=datetime.now(),
-            updated_at=datetime.now()
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
         db.add(merchant)
         db.commit()
@@ -1457,3 +1518,19 @@ async def get_merchant_logs(
     logs.sort(key=lambda x: x["timestamp"], reverse=True)
     
     return logs
+
+@app.get("/api/products/{product_id}", response_model=ProductResponse)
+async def get_product_details(
+    product_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    product = db.query(Product).filter(Product.product_id == product_id).first()
+    
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+    
+    return product

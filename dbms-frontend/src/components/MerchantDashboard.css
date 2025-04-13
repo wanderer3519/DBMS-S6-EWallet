@@ -177,9 +177,11 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  padding: 0.5rem;
-  background: #f8f9fa;
-  border-radius: 4px;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  margin-top: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .category-btn {
@@ -191,6 +193,8 @@
   cursor: pointer;
   transition: all 0.3s ease;
   font-weight: 500;
+  text-transform: capitalize;
+  font-size: 0.9rem;
 }
 
 .category-btn:hover {
@@ -202,6 +206,7 @@
 .category-btn.active {
   background: #3498db;
   color: white;
+  box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
 }
 
 .add-product-form {
@@ -300,14 +305,18 @@
   font-size: 0.875rem;
   color: white;
   font-weight: 500;
+  text-transform: capitalize;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .category-tag {
-  background: rgba(52, 152, 219, 0.8);
+  background: rgba(52, 152, 219, 0.9);
+  border: 1px solid rgba(52, 152, 219, 1);
 }
 
 .discount-tag {
   background: rgba(231, 76, 60, 0.8);
+  border: 1px solid rgba(231, 76, 60, 1);
 }
 
 .product-info {
@@ -357,15 +366,66 @@
 .product-meta {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   color: #6c757d;
   font-size: 0.875rem;
   margin-top: auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.stock, .dates {
+.stock, .category {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.stock {
+  padding: 0.25rem 0.5rem;
+  background: rgba(52, 152, 219, 0.1);
+  border-radius: 4px;
+}
+
+.stock i, .category i {
+  color: #3498db;
+}
+
+.category {
+  margin-left: 1rem;
+}
+
+.dates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: right;
+  font-size: 0.875rem;
+}
+
+.updated-at, .created-at {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.updated-at {
+  color: #27ae60;
+}
+
+.updated-at i {
+  color: #27ae60;
+}
+
+.created-at {
+  color: #7f8c8d;
+  font-size: 0.8rem;
+}
+
+.created-at i {
+  color: #7f8c8d;
 }
 
 .no-products {
@@ -413,6 +473,27 @@
 
   .products-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  .product-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .dates {
+    text-align: left;
+    width: 100%;
+  }
+
+  .category-filter {
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .category-btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
   }
 }
   

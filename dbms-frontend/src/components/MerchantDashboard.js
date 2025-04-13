@@ -15,6 +15,7 @@ const MerchantDashboard = () => {
   const [categories, setCategories] = useState([]);
   const [merchantProfile, setMerchantProfile] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [productDetails, setProductDetails] = useState({});
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
@@ -23,6 +24,7 @@ const MerchantDashboard = () => {
     stock: '',
     business_category: '',
     image: null,
+    isNewCategory: false
   });
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const navigate = useNavigate();
@@ -47,6 +49,19 @@ const MerchantDashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [navigate]);
+
+  // New useEffect to fetch product details
+  useEffect(() => {
+    const fetchAllProductDetails = async () => {
+      if (products.length > 0) {
+        for (const product of products) {
+          await fetchProductDetails(product.product_id);
+        }
+      }
+    };
+
+    fetchAllProductDetails();
+  }, [products]);
 
   const fetchMerchantProfile = async () => {
     try {
@@ -83,11 +98,12 @@ const MerchantDashboard = () => {
         },
       });
 
-      // Process products to ensure timestamps
+      // Process products and ensure all required fields
       const processedProducts = res.data.map(product => ({
         ...product,
         created_at: product.created_at || new Date().toISOString(),
-        updated_at: product.updated_at || product.created_at || new Date().toISOString()
+        updated_at: product.updated_at || product.created_at || new Date().toISOString(),
+        business_category: product.business_category || 'Uncategorized'
       }));
 
       const sortedProducts = processedProducts.sort((a, b) => 
@@ -97,9 +113,12 @@ const MerchantDashboard = () => {
       setAllProducts(sortedProducts);
       setProducts(sortedProducts);
       
-      const uniqueCategories = [...new Set(sortedProducts.map(product => product.business_category))];
-      setCategories(uniqueCategories);
+      // Extract and sort categories
+      const uniqueCategories = [...new Set(sortedProducts.map(product => 
+        product.business_category || 'Uncategorized'
+      ))].sort();
       
+      setCategories(uniqueCategories);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching products:', err);
@@ -108,23 +127,96 @@ const MerchantDashboard = () => {
     }
   };
 
+  // New function to fetch product details by ID
+  const fetchProductDetails = async (productId) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        navigate('/merchant/login');
+        return;
+      }
+      
+      const res = await axios.get(`http://localhost:8000/api/products/${productId}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      // Update the product details in the state
+      setProductDetails(prev => ({
+        ...prev,
+        [productId]: res.data
+      }));
+      
+      return res.data;
+    } catch (err) {
+      console.error(`Error fetching product details for ID ${productId}:`, err);
+      return null;
+    }
+  };
+
+  // Function to get product details (either from cache or fetch from API)
+  const getProductDetails = async (productId) => {
+    // If we already have the details, return them
+    if (productDetails[productId]) {
+      return productDetails[productId];
+    }
+    
+    // Otherwise fetch them
+    return await fetchProductDetails(productId);
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      
+      const now = new Date();
+      const diffTime = Math.abs(now - date);
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      // If less than 24 hours ago, show relative time
+      if (diffDays === 0) {
+        const hours = Math.floor(diffTime / (1000 * 60 * 60));
+        if (hours === 0) {
+          const minutes = Math.floor(diffTime / (1000 * 60));
+          return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+        }
+        return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+      }
+      
+      // If less than 7 days ago, show days ago
+      if (diffDays < 7) {
+        return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+      }
+      
+      // Otherwise show full date
+      return date.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewProduct(prev => ({ ...prev, [name]: value }));
+    setNewProduct(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
+  
+  
 
   const handleImageChange = (e) => {
     setNewProduct(prev => ({ ...prev, image: e.target.files[0] }));
@@ -176,6 +268,7 @@ const MerchantDashboard = () => {
         stock: '',
         business_category: '',
         image: null,
+        isNewCategory: false
       });
 
       setSuccessMessage('Product added successfully!');
@@ -213,7 +306,9 @@ const MerchantDashboard = () => {
     setShowAddProductForm(!showAddProductForm);
   };
 
-  const handleProductClick = (productId) => {
+  const handleProductClick = async (productId) => {
+    // Fetch product details before navigating
+    await getProductDetails(productId);
     navigate(`/product/${productId}`);
   };
 
@@ -360,31 +455,15 @@ const MerchantDashboard = () => {
 
             <div className="form-group">
               <label>Business Category:</label>
-              <select 
+              <input 
+                type="text" 
                 name="business_category" 
-                value={newProduct.business_category} 
-                onChange={handleInputChange} 
-                required
-              >
-                <option value="">Select a category</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-                <option value="new">Add New Category</option>
-              </select>
+                value={newProduct.business_category}
+                onChange={handleInputChange}
+                placeholder="Enter category name"
+                required 
+              />
             </div>
-
-            {newProduct.business_category === 'new' && (
-              <div className="form-group">
-                <label>New Category Name:</label>
-                <input 
-                  type="text" 
-                  name="newCategory" 
-                  onChange={(e) => setNewProduct(prev => ({...prev, business_category: e.target.value}))} 
-                  required 
-                />
-              </div>
-            )}
 
             <div className="form-group">
               <label>Product Image:</label>
@@ -405,7 +484,7 @@ const MerchantDashboard = () => {
       )}
 
       <div className="products-section">
-        <h3>Your Products</h3>
+        <h3>My Products</h3>
         {products.length === 0 ? (
           <div className="no-products">
             <i className="fas fa-box-open"></i>
@@ -413,51 +492,47 @@ const MerchantDashboard = () => {
           </div>
         ) : (
           <div className="products-grid">
-            {products.map(product => (
-              <div 
-                key={product.product_id} 
-                className="product-card"
-                onClick={() => handleProductClick(product.product_id)}
-              >
-                <div className="product-image">
-                  {product.image_url ? (
-                    <img 
-                      src={`http://localhost:8000${product.image_url}`}
-                      alt={product.name}
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = '/placeholder.png';
-                      }}
-                    />
-                  ) : (
-                    <div className="placeholder-image">
-                      <i className="fas fa-image"></i>
-                      <span>No Image</span>
+            {products.map(product => {
+              // Get detailed product info if available
+              const detailedProduct = productDetails[product.product_id] || product;
+              
+              return (
+                <div 
+                  key={product.product_id} 
+                  className="product-card"
+                  onClick={() => handleProductClick(product.product_id)}
+                >
+                  <div className="product-image">
+                    {detailedProduct.image_url ? (
+                      <img 
+                        src={`http://localhost:8000${detailedProduct.image_url}`}
+                        alt={detailedProduct.name}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/placeholder.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="placeholder-image">
+                        <i className="fas fa-image"></i>
+                        <span>No Image</span>
+                      </div>
+                    )}
+                    <div className="product-overlay">
+                      <span className="category-tag">{detailedProduct.business_category || 'Uncategorized'}</span>
+                      <span className="discount-tag">{calculateDiscount(detailedProduct.mrp, detailedProduct.price)}% OFF</span>
                     </div>
-                  )}
-                  <div className="product-overlay">
-                    <span className="category-tag">{product.business_category}</span>
-                    <span className="discount-tag">{calculateDiscount(product.mrp, product.price)}% OFF</span>
+                  </div>
+                  <div className="product-info">
+                    <h4>{detailedProduct.name}</h4>
+                    <div className="price-info">
+                      <span className="price">₹{detailedProduct.price}</span>
+                      <span className="mrp">MRP: ₹{detailedProduct.mrp}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="product-info">
-                  <h4>{product.name}</h4>
-                  <p className="description">{product.description}</p>
-                  <div className="price-info">
-                    <span className="price">₹{product.price}</span>
-                    <span className="mrp">MRP: ₹{product.mrp}</span>
-                  </div>
-                  <div className="product-meta">
-                    <span className="stock">
-                      <i className="fas fa-box"></i> {product.stock} in stock
-                    </span>
-                    <span className="dates">
-                      <i className="fas fa-clock"></i> Updated: {formatDate(product.updated_at)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
