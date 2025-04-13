@@ -1,24 +1,28 @@
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from database import engine, Base, get_db
-from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta
-from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_active_user, get_current_admin_user, get_current_merchant_user
 from typing import Optional, List
+
+
+from database import engine, Base, get_db
+from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
+from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_active_user, get_current_admin_user, get_current_merchant_user
+from file_upload import save_uploaded_file, delete_file
+from schemas import *
+
 import shutil
 import os
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import uuid
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-import jwt
+
 from passlib.context import CryptContext
 from dotenv import load_dotenv
 from sqlalchemy import func
 import schemas
-from file_upload import save_uploaded_file, delete_file
+
 
 # Load environment variables
 load_dotenv()
@@ -53,143 +57,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# Pydantic Schemas
-class UserCreate(BaseModel):
-    full_name: str
-    email: EmailStr
-    password: str
-    role: UserRole = UserRole.customer
-    contact: Optional[str] = None
-
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    
-
-class TokenData(BaseModel):
-    email: Optional[str] = None
-
-class AccountCreate(BaseModel):
-    account_type: AccountType = AccountType.user
-
-class AccountResponse(BaseModel):
-    account_id: int
-    user_id: int
-    account_type: AccountType
-    balance: float
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-class TransactionCreate(BaseModel):
-    account_id: int
-    transaction_type: TransactionType
-    amount: float
-
-class TransactionResponse(BaseModel):
-    transaction_id: int
-    account_id: int
-    amount: float
-    transaction_type: TransactionType
-    status: TransactionStatus
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-# Product Schemas
-class ProductCreate(BaseModel):
-    name: str
-    description: str
-    price: float
-    mrp: float
-    stock: int
-    image_url: str
-
-class ProductResponse(BaseModel):
-    product_id: int
-    name: str
-    description: str
-    price: float
-    mrp: float
-    stock: int
-    image_url: str
-    status: ProductStatus
-
-    class Config:
-        from_attributes = True
-
-# Cart Schemas
-class CartItemCreate(BaseModel):
-    product_id: int
-    quantity: int
-
-class CartResponse(BaseModel):
-    cart_id: int
-    items: List[dict]
-    total_amount: float
-
-    class Config:
-        from_attributes = True
-
-# Order Schemas
-class OrderCreate(BaseModel):
-    account_id: int
-
-class OrderResponse(BaseModel):
-    order_id: int
-    total_amount: float
-    status: OrderStatus
-    items: List[dict]
-
-    class Config:
-        from_attributes = True
-
-# Admin Stats Schema
-class AdminStats(BaseModel):
-    total_users: int
-    total_orders: int
-    total_revenue: float
-    active_merchants: int
-
-# User Profile Response Schema
-class UserProfileResponse(BaseModel):
-    user_id: int
-    full_name: str
-    email: str
-    role: UserRole
-    status: UserStatus
-    created_at: datetime
-    accounts: List[AccountResponse]
-
-    class Config:
-        from_attributes = True
-
-# User Update Schema
-class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
-
-# Password Update Schema
-class PasswordUpdate(BaseModel):
-    current_password: str
-    new_password: str
-
-# Product Update Schema
-class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    price: Optional[float] = None
-    mrp: Optional[float] = None
-    stock: Optional[int] = None
-    image_url: Optional[str] = None
-    status: Optional[ProductStatus] = None
 
 # API Endpoints
 @app.get('/')
@@ -890,7 +757,7 @@ async def get_categories(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Error fetching categories")
 
 @app.get("/api/account/profile", response_model=UserProfileResponse)
-async def get_profile(current_user: Users = Depends(get_current_user)):
+async def get_profile(current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)):
     # Get user accounts
     accounts = db.query(Account).filter(Account.user_id == current_user.user_id).all()
     
