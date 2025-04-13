@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import './Dashboard.css';
+import '../styles/Dashboard.css';
 
 const Dashboard = () => {
     const [products, setProducts] = useState([]);
