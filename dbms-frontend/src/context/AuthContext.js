@@ -27,7 +27,26 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:8000/api/login', { email, password });
+      // const requestOptions = {
+      //   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      //   body: JSON.stringify(
+      //     `grant_type=&username=${email}&password=${password}&scope=&client_id=&client_secret=`
+      //   )
+      // }
+      // const response = await axios.post('http://localhost:8000/api/token', requestOptions);
+      
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+      // grant_type etc. are optional unless your backend specifically checks for them
+
+      const response = await axios.post('http://localhost:8000/api/token', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      
       if (response.data && response.data.access_token) {
         localStorage.setItem('user', JSON.stringify(response.data));
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;

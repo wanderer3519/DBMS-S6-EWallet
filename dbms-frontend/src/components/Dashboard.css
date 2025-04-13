@@ -75,7 +75,7 @@
     color: #333;
 }
 
-.products-grid {
+/* .products-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 2rem;
@@ -118,7 +118,8 @@
     color: #666;
     font-size: 0.9rem;
     margin: 0.5rem 0;
-}
+} */
+
 
 .error-message {
     color: #dc3545;

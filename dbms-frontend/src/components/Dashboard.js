@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import './Dashboard.css';
+import ProductGrid from './ProductGrid';
 
 const Dashboard = () => {
   const [products, setProducts] = useState([]);
@@ -21,17 +22,23 @@ const Dashboard = () => {
         return;
       }
 
-      console.log("User", localStorage.getItem('user'));
-      console.log("Dashboard", user);
+      // console.log("User", localStorage.getItem('user'));
+      // console.log("Dashboard", user);
       try {
-        console.log(user);
-        console.log(user.user_id);
+        // console.log(user);
+        // console.log(user.user_id);
         // Fetch balance
+        const response = await axios.get('http://localhost:8000/api/user/me', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('user') && JSON.parse(localStorage.getItem('user')).access_token}`
+          }
+        });
 
-        
+        console.log(response.data); // current user data
 
 
-        const balanceResponse = await axios.get(`http://localhost:8000/api/accounts/${user.user_id}`, {
+
+        const balanceResponse = await axios.get(`http://localhost:8000/api/accounts/${response.data.user_id}`, {
           headers: {
             'Authorization': `Bearer ${user.access_token}`
           }
@@ -68,6 +75,7 @@ const Dashboard = () => {
     return () => clearTimeout(timer); // Clean up
   }, []);
 
+  // console.log(products);
   if (!isAuthenticated) {
     return null; // Will redirect in useEffect
   }
@@ -116,9 +124,9 @@ const Dashboard = () => {
         ) : error ? (
           <p className="error-message">{error}</p>
         ) : products.length > 0 ? (
-          <div className="products-grid">
-            {products.map((product) => (
-              <div key={product.id} className="product-card p-2">
+          <div className="dashboard-container">
+            {/* {products.map((product) => (
+              <div key={product.product_id} className="product-card p-2">
                 <img
                   src={product.image_url || 'default-product.png'}
                   alt={product.name}
@@ -128,7 +136,10 @@ const Dashboard = () => {
                 <p className="product-price">${product.price}</p>
                 <p className="product-description">{product.description}</p>
               </div>
-            ))}
+            ))} */}
+
+            <ProductGrid products={products} />
+
           </div>
         ) : (
           <p>No products available at the moment.</p>
