@@ -13,7 +13,7 @@ sample_products = [
         "price": 699.99,
         "mrp": 799.99,
         "stock": 50,
-        "category": "Electronics",
+        "business_category": "Electronics",
         "image_url": "products/smartphone.jpg"
     },
     {
@@ -22,7 +22,7 @@ sample_products = [
         "price": 1299.99,
         "mrp": 1499.99,
         "stock": 30,
-        "category": "Electronics",
+        "business_category": "Electronics",
         "image_url": "products/laptop.jpg"
     },
     {
@@ -31,7 +31,7 @@ sample_products = [
         "price": 149.99,
         "mrp": 199.99,
         "stock": 100,
-        "category": "Electronics",
+        "business_category": "Electronics",
         "image_url": "products/earbuds.jpg"
     },
     {
@@ -40,7 +40,7 @@ sample_products = [
         "price": 249.99,
         "mrp": 299.99,
         "stock": 75,
-        "category": "Wearables",
+        "business_category": "Wearables",
         "image_url": "products/smartwatch.jpg"
     },
     {
@@ -49,7 +49,7 @@ sample_products = [
         "price": 499.99,
         "mrp": 549.99,
         "stock": 25,
-        "category": "Gaming",
+        "business_category": "Gaming",
         "image_url": "products/console.jpg"
     }
 ]
@@ -134,7 +134,7 @@ def populate_products():
                         price=product_data["price"],
                         mrp=product_data["mrp"],
                         stock=product_data["stock"],
-                        category=product_data["category"],
+                        business_category=product_data["business_category"],
                         image_url=product_data["image_url"],
                         status=ProductStatus.active,
                         created_at=datetime.utcnow(),

@@ -13,24 +13,74 @@ const ProductDetails = () => {
     useEffect(() => {
         const fetchProduct = async () => {
             try {
-                const response = await axios.get(`http://localhost:8000/products/${productId}`);
+                const token = localStorage.getItem('token');
+                
+                if (!token) {
+                    navigate('/login');
+                    return;
+                }
+                
+                const response = await axios.get(`http://localhost:8000/api/products/${productId}`, {
+                    headers: { 
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                });
+                
                 setProduct(response.data);
                 setLoading(false);
             } catch (err) {
-                setError('Error fetching product details');
+                console.error('Error fetching product details:', err);
+                setError('Error fetching product details: ' + (err.response?.data?.detail || err.message));
                 setLoading(false);
             }
         };
 
         fetchProduct();
-    }, [productId]);
+    }, [productId, navigate]);
 
     if (loading) return <div className="loading">Loading...</div>;
     if (error) return <div className="error">{error}</div>;
     if (!product) return <div className="error">Product not found</div>;
 
     const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleString();
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return 'Invalid Date';
+            
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            // If less than 24 hours ago, show relative time
+            if (diffDays === 0) {
+                const hours = Math.floor(diffTime / (1000 * 60 * 60));
+                if (hours === 0) {
+                    const minutes = Math.floor(diffTime / (1000 * 60));
+                    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+                }
+                return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+            }
+            
+            // If less than 7 days ago, show days ago
+            if (diffDays < 7) {
+                return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+            }
+            
+            // Otherwise show full date
+            return date.toLocaleString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return 'Invalid Date';
+        }
     };
 
     return (
@@ -70,7 +120,7 @@ const ProductDetails = () => {
 
                     <div className="category-info">
                         <span className="label">Category:</span>
-                        <span className="value">{product.business_category}</span>
+                        <span className="value category-tag">{product.business_category || 'Uncategorized'}</span>
                     </div>
 
                     <div className="dates-info">
