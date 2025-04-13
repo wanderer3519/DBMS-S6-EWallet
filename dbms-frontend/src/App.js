@@ -13,6 +13,7 @@ import MerchantLogin from './components/MerchantLogin';
 import MerchantSignup from './components/MerchantSignup';
 import AdminDashboard from './components/AdminDashboard';
 import MerchantLogs from './components/MerchantLogs';
+import ProductDetails from './components/ProductDetails';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const PrivateRoute = ({ children, roles }) => {
@@ -49,6 +50,7 @@ function App() {
               </PrivateRoute>
             } />
             <Route path="/products" element={<Products />} />
+            <Route path="/product/:productId" element={<ProductDetails />} />
             <Route path="/cart" element={
               <PrivateRoute>
                 <Cart />
