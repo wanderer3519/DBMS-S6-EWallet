@@ -1,0 +1,156 @@
+.product-details-container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.5rem 0;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.back-button:hover {
+    color: #333;
+}
+
+.product-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.product-image-container {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.product-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.product-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.product-info h1 {
+    font-size: 2rem;
+    color: #333;
+    margin: 0;
+}
+
+.description {
+    color: #666;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.price-info {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+.price, .mrp {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.label {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.value {
+    color: #333;
+    font-weight: 500;
+}
+
+.price .value {
+    color: #2ecc71;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.mrp .value {
+    text-decoration: line-through;
+    color: #999;
+}
+
+.stock-info, .category-info, .dates-info, .status-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.dates-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.created-at, .updated-at {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.status-info .value {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.status-active {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-inactive {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.status-out_of_stock {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+.loading, .error {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.error {
+    color: #c62828;
+}
+
+@media (max-width: 768px) {
+    .product-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .product-image-container {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+} 
