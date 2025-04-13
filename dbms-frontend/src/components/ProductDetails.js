@@ -99,7 +99,13 @@ const ProductDetails = () => {
                 </div>
                 
                 <div className="product-info">
+                    <div className="product-id-info">
+                        <span className="label">Product ID:</span>
+                        <span className="value">{product.product_id || product.id || 'N/A'}</span>
+                    </div>
+
                     <h1>{product.name}</h1>
+
                     <p className="description">{product.description}</p>
                     
                     <div className="price-info">

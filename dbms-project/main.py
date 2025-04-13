@@ -1005,22 +1005,24 @@ async def get_admin_stats(
     # Get total users
     total_users = db.query(Users).count()
     
-    # Get total orders and revenue
+    # Get total orders
     total_orders = db.query(Order).count()
-    total_revenue = db.query(Order).filter(Order.status == "completed").with_entities(
-        func.sum(Order.total_amount)
+    
+    # Get total revenue
+    total_revenue = db.query(Order).filter(Order.status == OrderStatus.completed).with_entities(
+        text("SUM(total_amount)")
     ).scalar() or 0
     
     # Get active merchants
     active_merchants = db.query(Users).filter(
-        Users.role == "merchant",
+        Users.role == UserRole.merchant,
         Users.status == UserStatus.active
     ).count()
     
     return {
         "total_users": total_users,
         "total_orders": total_orders,
-        "total_revenue": total_revenue,
+        "total_revenue": float(total_revenue),
         "active_merchants": active_merchants
     }
 
@@ -1107,7 +1109,7 @@ async def create_merchant_product(
                 business_category=business_category,
                 name=current_user.full_name,
                 email=current_user.email,
-                contact=current_user.phone or "",  # Use phone from Users table
+                contact=current_user.contact or "",  # Use contact from Users table
                 created_at=current_time,
                 updated_at=current_time
             )
@@ -1323,17 +1325,17 @@ async def update_product(
         raise HTTPException(status_code=404, detail="Product not found")
 
     # Update fields if provided
-    if name:
+    if name is not None:
         product.name = name
-    if description:
+    if description is not None:
         product.description = description
-    if price:
+    if price is not None:
         product.price = price
-    if mrp:
+    if mrp is not None:
         product.mrp = mrp
-    if stock:
+    if stock is not None:
         product.stock = stock
-    if image:
+    if image is not None:
         # Delete old image if exists
         if product.image_url:
             await delete_file(product.image_url)
@@ -1534,3 +1536,99 @@ async def get_product_details(
         )
     
     return product
+
+@app.get("/api/merchant/profile", response_model=dict)
+async def get_merchant_profile(
+    current_user: Users = Depends(get_current_merchant_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get merchant profile
+        merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant profile not found")
+        
+        return {
+            "merchant_id": merchant.merchant_id,
+            "business_name": merchant.business_name,
+            "business_category": merchant.business_category,
+            "name": merchant.name,
+            "email": merchant.email,
+            "contact": merchant.contact,
+            "created_at": merchant.created_at,
+            "updated_at": merchant.updated_at
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/merchant/stats", response_model=dict)
+async def get_merchant_stats(
+    current_user: Users = Depends(get_current_merchant_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get merchant profile
+        merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant profile not found")
+        
+        # Get total products count
+        total_products = db.query(func.count(Product.product_id)).filter(
+            Product.merchant_id == merchant.merchant_id
+        ).scalar() or 0
+        
+        # Get active listings (products with status = active)
+        active_listings = db.query(func.count(Product.product_id)).filter(
+            Product.merchant_id == merchant.merchant_id,
+            Product.status == ProductStatus.active
+        ).scalar() or 0
+        
+        return {
+            "total_products": total_products,
+            "active_listings": active_listings
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/merchant/profile", response_model=dict)
+async def update_merchant_profile(
+    business_name: Optional[str] = Form(None),
+    business_category: Optional[str] = Form(None),
+    contact: Optional[str] = Form(None),
+    current_user: Users = Depends(get_current_merchant_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get merchant profile
+        merchant = db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
+        if not merchant:
+            raise HTTPException(status_code=404, detail="Merchant profile not found")
+        
+        # Update fields if provided
+        if business_name is not None:
+            merchant.business_name = business_name
+        if business_category is not None:
+            merchant.business_category = business_category
+        if contact is not None:
+            merchant.contact = contact
+        
+        # Update timestamp
+        merchant.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(merchant)
+        
+        return {
+            "merchant_id": merchant.merchant_id,
+            "business_name": merchant.business_name,
+            "business_category": merchant.business_category,
+            "name": merchant.name,
+            "email": merchant.email,
+            "contact": merchant.contact,
+            "created_at": merchant.created_at,
+            "updated_at": merchant.updated_at
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
