@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
+import axios from 'axios';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -19,6 +20,8 @@ const Login = () => {
         try {
             const result = await login(email, password);
             if (result.success) {
+                // Set the authorization header for all future requests
+                axios.defaults.headers.common['Authorization'] = `Bearer ${result.token}`;
                 navigate('/dashboard');
             } else {
                 setError(typeof result.error === 'string' ? result.error : 'Login failed. Please check your credentials.');

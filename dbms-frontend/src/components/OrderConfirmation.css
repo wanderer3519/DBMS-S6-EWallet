@@ -1,0 +1,147 @@
+.order-confirmation-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.order-confirmation-content {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+    text-align: center;
+}
+
+.success-icon {
+    width: 80px;
+    height: 80px;
+    background: #4CAF50;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    margin: 0 auto 1.5rem;
+}
+
+.order-confirmation-content h1 {
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-size: 2rem;
+}
+
+.order-id {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+}
+
+.order-details {
+    text-align: left;
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.order-details h2 {
+    color: #444;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+}
+
+.order-summary {
+    margin-bottom: 1.5rem;
+}
+
+.order-summary p {
+    color: #666;
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.order-items {
+    margin-top: 1.5rem;
+}
+
+.order-items h3 {
+    color: #444;
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.order-item {
+    padding: 1rem;
+    background: white;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.order-item p {
+    color: #666;
+    margin: 0.25rem 0;
+}
+
+.order-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.continue-shopping,
+.view-orders {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.continue-shopping {
+    background: #4CAF50;
+    color: white;
+}
+
+.continue-shopping:hover {
+    background: #45a049;
+}
+
+.view-orders {
+    background: #f8f9fa;
+    color: #333;
+    border: 1px solid #ddd;
+}
+
+.view-orders:hover {
+    background: #e9ecef;
+}
+
+.order-confirmation-loading,
+.order-confirmation-error {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.order-confirmation-error {
+    color: #dc3545;
+}
+
+@media (max-width: 768px) {
+    .order-confirmation-content {
+        padding: 1.5rem;
+    }
+
+    .order-actions {
+        flex-direction: column;
+    }
+
+    .continue-shopping,
+    .view-orders {
+        width: 100%;
+    }
+} 

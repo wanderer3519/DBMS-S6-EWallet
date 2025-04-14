@@ -104,6 +104,7 @@ class ProductResponse(BaseModel):
 class CartItemBase(BaseModel):
     product_id: int
     quantity: int
+    user_id: int
 
 class CartItemCreate(CartItemBase):
     pass

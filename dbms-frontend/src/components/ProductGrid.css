@@ -1,0 +1,27 @@
+.product-card {
+    transition: box-shadow 0.3s ease;
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  .product-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  .card-img-container {
+    overflow: hidden;
+  }
+  
+  .card-img-top {
+    transition: transform 0.3s ease;
+  }
+  
+  .product-card:hover .card-img-top {
+    transform: scale(1.05);
+  }
+  
+  .description-container {
+    max-height: 4.5rem;
+    overflow-y: auto;
+    margin-bottom: 0.5rem;
+  }

@@ -7,6 +7,8 @@ import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import Products from './components/Products';
 import Cart from './components/Cart';
+import Checkout from './components/Checkout';
+import OrderConfirmation from './components/OrderConfirmation';
 import Orders from './components/Orders';
 import MerchantDashboard from './components/MerchantDashboard';
 import MerchantLogin from './components/MerchantLogin';
@@ -15,6 +17,7 @@ import AdminDashboard from './components/AdminDashboard';
 import MerchantLogs from './components/MerchantLogs';
 import ProductDetails from './components/ProductDetails';
 import MerchantProfile from './components/MerchantProfile';
+import UserProfile from './components/UserProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const PrivateRoute = ({ children, roles }) => {
@@ -50,11 +53,26 @@ function App() {
                 <Dashboard />
               </PrivateRoute>
             } />
+            <Route path="/profile" element={
+              <PrivateRoute>
+                <UserProfile />
+              </PrivateRoute>
+            } />
             <Route path="/products" element={<Products />} />
             <Route path="/product/:productId" element={<ProductDetails />} />
             <Route path="/cart" element={
               <PrivateRoute>
                 <Cart />
+              </PrivateRoute>
+            } />
+            <Route path="/checkout" element={
+              <PrivateRoute>
+                <Checkout />
+              </PrivateRoute>
+            } />
+            <Route path="/order-confirmation/:orderId" element={
+              <PrivateRoute>
+                <OrderConfirmation />
               </PrivateRoute>
             } />
             <Route path="/orders" element={
