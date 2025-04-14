@@ -1,150 +1,113 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { handleAddToCart } from './Cart';
 import './ProductDetails.css';
 
 const ProductDetails = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [quantity, setQuantity] = useState(1);
     const { productId } = useParams();
     const navigate = useNavigate();
 
     useEffect(() => {
-        const fetchProduct = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                
-                if (!token) {
-                    navigate('/login');
-                    return;
-                }
-                
-                const response = await axios.get(`http://localhost:8000/api/products/${productId}`, {
-                    headers: { 
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                });
-                
-                setProduct(response.data);
-                setLoading(false);
-            } catch (err) {
-                console.error('Error fetching product details:', err);
-                setError('Error fetching product details: ' + (err.response?.data?.detail || err.message));
-                setLoading(false);
-            }
-        };
+        fetchProductDetails();
+    }, [productId]);
 
-        fetchProduct();
-    }, [productId, navigate]);
-
-    if (loading) return <div className="loading">Loading...</div>;
-    if (error) return <div className="error">{error}</div>;
-    if (!product) return <div className="error">Product not found</div>;
-
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
+    const fetchProductDetails = async () => {
         try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return 'Invalid Date';
-            
-            const now = new Date();
-            const diffTime = Math.abs(now - date);
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            
-            // If less than 24 hours ago, show relative time
-            if (diffDays === 0) {
-                const hours = Math.floor(diffTime / (1000 * 60 * 60));
-                if (hours === 0) {
-                    const minutes = Math.floor(diffTime / (1000 * 60));
-                    return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
-                }
-                return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-            }
-            
-            // If less than 7 days ago, show days ago
-            if (diffDays < 7) {
-                return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-            }
-            
-            // Otherwise show full date
-            return date.toLocaleString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
+            const response = await axios.get(`http://localhost:8000/products/${productId}`);
+            setProduct(response.data);
+            setLoading(false);
         } catch (error) {
-            console.error('Error formatting date:', error);
-            return 'Invalid Date';
+            console.error('Error fetching product details:', error);
+            setError('Failed to load product details. Please try again.');
+            setLoading(false);
         }
     };
 
+    const handleQuantityChange = (change) => {
+        const newQuantity = Math.max(1, Math.min(product.stock, quantity + change));
+        setQuantity(newQuantity);
+    };
+
+    const handleAddToCartClick = async () => {
+        try {
+            await handleAddToCart(productId, quantity);
+            alert('Product added to cart successfully!');
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            alert('Failed to add item to cart. Please try again.');
+        }
+    };
+
+    if (loading) return <div className="loading">Loading product details...</div>;
+    if (error) return <div className="error">{error}</div>;
+    if (!product) return <div className="error">Product not found</div>;
+
     return (
         <div className="product-details-container">
-            <button className="back-button" onClick={() => navigate(-1)}>
-                ← Back to Dashboard
+            <button className="back-button" onClick={() => navigate('/dashboard')}>
+                ← Back to Products
             </button>
             
-            <div className="product-details">
-                <div className="product-image-container">
-                    <img 
-                        src={product.image_url || 'https://via.placeholder.com/300'} 
-                        alt={product.name}
-                        className="product-image"
-                    />
+            <div className="product-details-content">
+                <div className="product-image-section">
+                    {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="product-image" />
+                    ) : (
+                        <div className="placeholder-image">No Image Available</div>
+                    )}
                 </div>
                 
-                <div className="product-info">
-                    <div className="product-id-info">
-                        <span className="label">Product ID:</span>
-                        <span className="value">{product.product_id || product.id || 'N/A'}</span>
-                    </div>
-
+                <div className="product-info-section">
                     <h1>{product.name}</h1>
-
-                    <p className="description">{product.description}</p>
+                    <div className="product-category">
+                        Category: {product.business_category}
+                    </div>
                     
-                    <div className="price-info">
-                        <div className="price">
-                            <span className="label">Price:</span>
-                            <span className="value">₹{product.price}</span>
-                        </div>
-                        <div className="mrp">
-                            <span className="label">MRP:</span>
-                            <span className="value">₹{product.mrp}</span>
-                        </div>
+                    <div className="product-pricing">
+                        <div className="current-price">₹{product.price}</div>
+                        {product.mrp > product.price && (
+                            <div className="original-price">MRP: ₹{product.mrp}</div>
+                        )}
                     </div>
-
-                    <div className="stock-info">
-                        <span className="label">Stock:</span>
-                        <span className="value">{product.stock} units</span>
+                    
+                    <div className="product-stock">
+                        Stock Available: {product.stock} units
                     </div>
-
-                    <div className="category-info">
-                        <span className="label">Category:</span>
-                        <span className="value category-tag">{product.business_category || 'Uncategorized'}</span>
+                    
+                    <div className="product-description">
+                        <h3>Description</h3>
+                        <p>{product.description}</p>
                     </div>
-
-                    <div className="dates-info">
-                        <div className="created-at">
-                            <span className="label">Created:</span>
-                            <span className="value">{formatDate(product.created_at)}</span>
+                    
+                    <div className="product-actions">
+                        <div className="quantity-controls">
+                            <button 
+                                onClick={() => handleQuantityChange(-1)}
+                                disabled={quantity <= 1}
+                            >
+                                -
+                            </button>
+                            <span>{quantity}</span>
+                            <button 
+                                onClick={() => handleQuantityChange(1)}
+                                disabled={quantity >= product.stock}
+                            >
+                                +
+                            </button>
                         </div>
-                        <div className="updated-at">
-                            <span className="label">Last Updated:</span>
-                            <span className="value">{formatDate(product.updated_at)}</span>
-                        </div>
-                    </div>
-
-                    <div className="status-info">
-                        <span className="label">Status:</span>
-                        <span className={`value status-${product.status}`}>
-                            {product.status}
-                        </span>
+                        
+                        <button 
+                            className="add-to-cart-btn"
+                            onClick={handleAddToCartClick}
+                            disabled={product.stock === 0}
+                        >
+                            {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                        </button>
                     </div>
                 </div>
             </div>

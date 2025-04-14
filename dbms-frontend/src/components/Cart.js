@@ -1,208 +1,233 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Table, Button, Form, Alert, Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { getUserProfile } from '../api/user';
-import '../styles/Cart.css';
+import axios from 'axios';
+import './Cart.css';
+
+export const calculateTotal = (items) => {
+    return items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+};
+
+export const handleAddToCart = async (productId, quantity = 1) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('Please login to add items to cart');
+        }
+
+        const response = await axios.post('http://localhost:8000/api/cart/add', {
+            product_id: productId,
+            quantity: quantity
+        }, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error('Error adding to cart:', error);
+        if (error.response?.status === 401) {
+            throw new Error('Please login to add items to cart');
+        } else if (error.response?.status === 404) {
+            throw new Error('Product not found');
+        } else if (error.response?.status === 400) {
+            throw new Error(error.response.data.detail || 'Not enough stock available');
+        } else {
+            throw new Error('Failed to add item to cart. Please try again.');
+        }
+    }
+};
 
 const Cart = () => {
     const [cartItems, setCartItems] = useState([]);
-    const [userProfile, setUserProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
+    const [total, setTotal] = useState(0);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const userId = localStorage.getItem('userId');
-                if (!userId) {
-                    navigate('/login');
-                    return;
+    const fetchCartItems = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            const response = await axios.get('http://localhost:8000/api/cart', {
+                headers: {
+                    Authorization: `Bearer ${token}`
                 }
-
-                const profile = await getUserProfile(userId);
-                setUserProfile(profile);
-
-                // Fetch cart items
-                const response = await fetch(`http://127.0.0.1:8000/cart/${userId}`);
-                const data = await response.json();
-                setCartItems(data.items);
-                setLoading(false);
-            } catch (err) {
-                setError(err.message);
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [navigate]);
-
-    const calculateTotal = () => {
-        return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-    };
-
-    const handleCheckout = async () => {
-        try {
-            if (!userProfile) {
-                setError('Please login to checkout');
-                return;
-            }
-
-            const total = calculateTotal();
-            const balance = userProfile.accounts[0]?.balance || 0;
-
-            if (balance < total) {
-                setError(`Insufficient balance. Required: ₹${total}, Available: ₹${balance}`);
-                return;
-            }
-
-            // Proceed with checkout
-            const response = await fetch('http://127.0.0.1:8000/orders/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    account_id: userProfile.accounts[0].account_id,
-                    user_id: userProfile.user_id
-                })
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to place order');
-            }
-
-            setSuccess('Order placed successfully!');
-            setTimeout(() => {
-                navigate('/orders');
-            }, 2000);
+            setCartItems(response.data.items || []);
+            setTotal(response.data.total_amount || 0);
+            setLoading(false);
         } catch (err) {
-            setError(err.message);
+            setError('Failed to fetch cart items. Please try again later.');
+            setLoading(false);
         }
     };
 
-    const handleRemoveItem = async (productId) => {
+    useEffect(() => {
+        fetchCartItems();
+    }, []);
+
+    const updateQuantity = async (productId, newQuantity) => {
+        if (newQuantity < 1) return;
+        
         try {
-            const userId = localStorage.getItem('userId');
-            const response = await fetch(`http://127.0.0.1:8000/cart/remove`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    user_id: userId,
-                    product_id: productId
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to remove item');
-            }
-
-            setCartItems(cartItems.filter(item => item.product_id !== productId));
-            setSuccess('Item removed from cart');
-            setTimeout(() => setSuccess(null), 3000);
+            const token = localStorage.getItem('token');
+            await axios.put(`http://localhost:8000/api/cart/${productId}`, 
+                { quantity: newQuantity },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            fetchCartItems();
         } catch (err) {
-            setError(err.message);
-            setTimeout(() => setError(null), 3000);
+            console.error('Error updating quantity:', err);
+            setError('Failed to update quantity. Please try again.');
         }
+    };
+
+    const removeItem = async (productId) => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`http://localhost:8000/api/cart/${productId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            fetchCartItems();
+        } catch (err) {
+            setError('Failed to remove item. Please try again.');
+        }
+    };
+
+    const handleCheckout = () => {
+        if (cartItems.length === 0) {
+            setError('Your cart is empty. Please add items before checkout.');
+            return;
+        }
+        navigate('/checkout');
+    };
+
+    const handleBackToDashboard = () => {
+        navigate('/dashboard');
     };
 
     if (loading) {
-        return (
-            <Container className="mt-5">
-                <div className="text-center">
-                    <div className="spinner-border" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                    </div>
-                </div>
-            </Container>
-        );
+        return <div className="loading">Loading your cart...</div>;
+    }
+
+    if (error) {
+        return <div className="error">{error}</div>;
     }
 
     return (
-        <Container className="mt-5">
-            {error && <Alert variant="danger">{error}</Alert>}
-            {success && <Alert variant="success">{success}</Alert>}
-
-            <h2 className="mb-4">Shopping Cart</h2>
+        <div className="cart-container">
+            <div className="cart-header">
+                <h1>Your Shopping Cart</h1>
+                <button 
+                    className="back-to-dashboard"
+                    onClick={handleBackToDashboard}
+                >
+                    ← Back to Dashboard
+                </button>
+            </div>
             
-            {userProfile && (
-                <div className="mb-4">
-                    <h4>Account Balance: ₹{userProfile.accounts[0]?.balance || 0}</h4>
+            {cartItems.length === 0 ? (
+                <div className="empty-cart">
+                    <p>Your cart is empty</p>
+                    <button 
+                        className="continue-shopping"
+                        onClick={() => navigate('/dashboard')}
+                    >
+                        Continue Shopping
+                    </button>
+                </div>
+            ) : (
+                <div className="cart-layout">
+                    <div className="cart-items-container">
+                        <div className="cart-items">
+                            {cartItems.map((item) => (
+                                <div key={item.cart_item_id} className="cart-item">
+                                    <div className="item-image">
+                                        {item.image_url ? (
+                                            <img src={item.image_url} alt={item.name} />
+                                        ) : (
+                                            <div className="placeholder-image">No image</div>
+                                        )}
+                                    </div>
+                                    <div className="item-details">
+                                        <h3>{item.name}</h3>
+                                        <p className="item-category">{item.category}</p>
+                                        <p className="item-price">₹{item.price}</p>
+                                    </div>
+                                    <div className="item-quantity">
+                                        <button 
+                                            className="quantity-btn"
+                                            onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
+                                            disabled={item.quantity <= 1}
+                                        >
+                                            -
+                                        </button>
+                                        <span className="quantity-value">{item.quantity}</span>
+                                        <button 
+                                            className="quantity-btn"
+                                            onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
+                                        >
+                                            +
+                                        </button>
+                                    </div>
+                                    <div className="item-total">
+                                        ₹{(item.price * item.quantity).toFixed(2)}
+                                    </div>
+                                    <button 
+                                        className="remove-item"
+                                        onClick={() => removeItem(item.product_id)}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="cart-summary">
+                        <h2>Order Summary</h2>
+                        <div className="summary-row">
+                            <span>Items ({cartItems.length})</span>
+                            <span>₹{total.toFixed(2)}</span>
+                        </div>
+                        <div className="summary-row">
+                            <span>Delivery</span>
+                            <span>Free</span>
+                        </div>
+                        <div className="summary-row total-amount">
+                            <span>Total Amount</span>
+                            <span>₹{total.toFixed(2)}</span>
+                        </div>
+                        <button 
+                            className="checkout-button"
+                            onClick={handleCheckout}
+                            disabled={cartItems.length === 0}
+                        >
+                            Proceed to Checkout
+                        </button>
+                        <button 
+                            className="continue-shopping"
+                            onClick={() => navigate('/dashboard')}
+                        >
+                            Continue Shopping
+                        </button>
+                    </div>
                 </div>
             )}
-
-            {cartItems.length === 0 ? (
-                <Card>
-                    <Card.Body className="text-center">
-                        <h4>Your cart is empty</h4>
-                        <Button variant="primary" onClick={() => navigate('/products')}>
-                            Continue Shopping
-                        </Button>
-                    </Card.Body>
-                </Card>
-            ) : (
-                <>
-                    <Table responsive>
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Price</th>
-                                <th>Quantity</th>
-                                <th>Total</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {cartItems.map((item) => (
-                                <tr key={item.product_id}>
-                                    <td>
-                                        <div className="d-flex align-items-center">
-                                            <img
-                                                src={item.image_url}
-                                                alt={item.name}
-                                                className="cart-item-image"
-                                            />
-                                            <span className="ms-3">{item.name}</span>
-                                        </div>
-                                    </td>
-                                    <td>₹{item.price}</td>
-                                    <td>{item.quantity}</td>
-                                    <td>₹{item.price * item.quantity}</td>
-                                    <td>
-                                        <Button
-                                            variant="danger"
-                                            size="sm"
-                                            onClick={() => handleRemoveItem(item.product_id)}
-                                        >
-                                            Remove
-                                        </Button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-
-                    <Card className="mt-4">
-                        <Card.Body>
-                            <div className="d-flex justify-content-between align-items-center">
-                                <h4>Total: ₹{calculateTotal()}</h4>
-                                <Button
-                                    variant="primary"
-                                    size="lg"
-                                    onClick={handleCheckout}
-                                    disabled={!userProfile}
-                                >
-                                    Proceed to Checkout
-                                </Button>
-                            </div>
-                        </Card.Body>
-                    </Card>
-                </>
-            )}
-        </Container>
+        </div>
     );
 };
 

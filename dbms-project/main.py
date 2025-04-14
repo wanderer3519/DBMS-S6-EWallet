@@ -577,67 +577,88 @@ async def upload_product_image(
     return {"url": f"/uploads/{filename}"}
 
 # Cart Endpoints
-@app.post("/cart/add", response_model=CartResponse)
-def add_to_cart(item: CartItemCreate, user_id: int, db: Session = Depends(get_db)):
-    # Get or create cart
-    cart = db.query(Cart).filter(Cart.user_id == user_id).first()
-    if not cart:
-        cart = Cart(user_id=user_id, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
-        db.add(cart)
-        db.commit()
-        db.refresh(cart)
-    
-    # Check product exists and has stock
-    product = db.query(Product).filter(Product.product_id == item.product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    if product.stock < item.quantity:
-        raise HTTPException(status_code=400, detail="Not enough stock")
-    
-    # Add or update cart item
-    cart_item = db.query(CartItem).filter(
-        CartItem.cart_id == cart.cart_id,
-        CartItem.product_id == item.product_id
-    ).first()
-    
-    if cart_item:
-        cart_item.quantity += item.quantity
-        cart_item.updated_at = datetime.utcnow()
-    else:
-        cart_item = CartItem(
-            cart_id=cart.cart_id,
-            product_id=item.product_id,
-            quantity=item.quantity,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db.add(cart_item)
-    
-    db.commit()
-    
-    # Calculate total
-    cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
-    total = 0
-    for item in cart_items:
+@app.post("/api/cart/add", response_model=CartResponse)
+async def add_to_cart(
+    item: CartItemCreate,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get or create cart
+        cart = db.query(Cart).filter(Cart.user_id == current_user.user_id).first()
+        if not cart:
+            cart = Cart(
+                user_id=current_user.user_id,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(cart)
+            db.commit()
+            db.refresh(cart)
+        
+        # Check product exists and has stock
         product = db.query(Product).filter(Product.product_id == item.product_id).first()
-        if product:
-            total += item.quantity * product.price
-    
-    # Log cart update
-    log = Logs(
-        user_id=user_id,
-        action="cart_update",
-        description=f"User {user_id} added product {item.product_id} to cart",
-        created_at=datetime.utcnow()
-    )
-    db.add(log)
-    db.commit()
-    
-    return {
-        "cart_id": cart.cart_id,
-        "items": [{"product_id": item.product_id, "quantity": item.quantity} for item in cart_items],
-        "total_amount": total
-    }
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        if product.stock < item.quantity:
+            raise HTTPException(status_code=400, detail="Not enough stock")
+        
+        # Add or update cart item
+        cart_item = db.query(CartItem).filter(
+            CartItem.cart_id == cart.cart_id,
+            CartItem.product_id == item.product_id
+        ).first()
+        
+        if cart_item:
+            cart_item.quantity += item.quantity
+            cart_item.updated_at = datetime.utcnow()
+        else:
+            cart_item = CartItem(
+                cart_id=cart.cart_id,
+                product_id=item.product_id,
+                quantity=item.quantity,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(cart_item)
+        
+        db.commit()
+        
+        # Calculate total and get updated cart items
+        cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
+        total = 0
+        items = []
+        
+        for cart_item in cart_items:
+            product = db.query(Product).filter(Product.product_id == cart_item.product_id).first()
+            if product:
+                total += cart_item.quantity * product.price
+                items.append({
+                    "product_id": cart_item.product_id,
+                    "quantity": cart_item.quantity,
+                    "price": product.price,
+                    "name": product.name,
+                    "image_url": product.image_url
+                })
+        
+        # Log cart update
+        log = Logs(
+            user_id=current_user.user_id,
+            action="cart_update",
+            description=f"User {current_user.user_id} added product {item.product_id} to cart",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+        db.commit()
+        
+        return {
+            "cart_id": cart.cart_id,
+            "items": items,
+            "total_amount": total
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/cart/{user_id}", response_model=CartResponse)
 def get_cart(user_id: int, db: Session = Depends(get_db)):
@@ -665,6 +686,174 @@ def get_cart(user_id: int, db: Session = Depends(get_db)):
         "items": items,
         "total_amount": total
     }
+
+@app.delete("/api/cart/{product_id}")
+async def remove_from_cart(
+    product_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's cart
+        cart = db.query(Cart).filter(Cart.user_id == current_user.user_id).first()
+        if not cart:
+            raise HTTPException(status_code=404, detail="Cart not found")
+        
+        # Find and delete the cart item
+        cart_item = db.query(CartItem).filter(
+            CartItem.cart_id == cart.cart_id,
+            CartItem.product_id == product_id
+        ).first()
+        
+        if not cart_item:
+            raise HTTPException(status_code=404, detail="Item not found in cart")
+        
+        db.delete(cart_item)
+        
+        # Log cart update
+        log = Logs(
+            user_id=current_user.user_id,
+            action="cart_update",
+            description=f"User {current_user.user_id} removed product {product_id} from cart",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+        
+        db.commit()
+        return {"message": "Item removed from cart successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/cart", response_model=CartResponse)
+async def get_current_user_cart(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's cart
+        cart = db.query(Cart).filter(Cart.user_id == current_user.user_id).first()
+        if not cart:
+            return {
+                "cart_id": 0,
+                "user_id": current_user.user_id,
+                "items": [],
+                "total_amount": 0,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        
+        # Get cart items with product details
+        cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
+        items = []
+        total = 0
+        
+        for item in cart_items:
+            product = db.query(Product).filter(Product.product_id == item.product_id).first()
+            if product:
+                total += item.quantity * product.price
+                items.append({
+                    "cart_item_id": item.cart_item_id,
+                    "cart_id": item.cart_id,
+                    "product_id": item.product_id,
+                    "quantity": item.quantity,
+                    "user_id": current_user.user_id,
+                    "created_at": item.created_at,
+                    "updated_at": item.updated_at,
+                    "name": product.name,
+                    "price": product.price,
+                    "image_url": product.image_url,
+                    "category": product.business_category
+                })
+        
+        return {
+            "cart_id": cart.cart_id,
+            "user_id": current_user.user_id,
+            "items": items,
+            "total_amount": total,
+            "created_at": cart.created_at,
+            "updated_at": cart.updated_at
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/cart/{product_id}", response_model=CartResponse)
+async def update_cart_item(
+    product_id: int,
+    quantity: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's cart
+        cart = db.query(Cart).filter(Cart.user_id == current_user.user_id).first()
+        if not cart:
+            raise HTTPException(status_code=404, detail="Cart not found")
+        
+        # Check product exists and has stock
+        product = db.query(Product).filter(Product.product_id == product_id).first()
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        if product.stock < quantity:
+            raise HTTPException(status_code=400, detail="Not enough stock")
+        
+        # Update cart item
+        cart_item = db.query(CartItem).filter(
+            CartItem.cart_id == cart.cart_id,
+            CartItem.product_id == product_id
+        ).first()
+        
+        if not cart_item:
+            raise HTTPException(status_code=404, detail="Item not found in cart")
+        
+        cart_item.quantity = quantity
+        cart_item.updated_at = datetime.utcnow()
+        
+        # Log cart update
+        log = Logs(
+            user_id=current_user.user_id,
+            action="cart_update",
+            description=f"User {current_user.user_id} updated quantity of product {product_id} to {quantity}",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+        
+        db.commit()
+        
+        # Get updated cart items
+        cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
+        total = 0
+        items = []
+        
+        for item in cart_items:
+            product = db.query(Product).filter(Product.product_id == item.product_id).first()
+            if product:
+                total += item.quantity * product.price
+                items.append({
+                    "cart_item_id": item.cart_item_id,
+                    "cart_id": item.cart_id,
+                    "product_id": item.product_id,
+                    "quantity": item.quantity,
+                    "user_id": current_user.user_id,
+                    "created_at": item.created_at,
+                    "updated_at": item.updated_at,
+                    "name": product.name,
+                    "price": product.price,
+                    "image_url": product.image_url,
+                    "category": product.business_category
+                })
+        
+        return {
+            "cart_id": cart.cart_id,
+            "user_id": current_user.user_id,
+            "items": items,
+            "total_amount": total,
+            "created_at": cart.created_at,
+            "updated_at": cart.updated_at
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Order Endpoints
 @app.post("/orders/", response_model=OrderResponse)
@@ -1627,6 +1816,139 @@ async def update_merchant_profile(
             "contact": merchant.contact,
             "created_at": merchant.created_at,
             "updated_at": merchant.updated_at
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user/me", response_model=dict)
+async def get_current_user_info(current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        
+        return {
+            "user_id": current_user.user_id,
+            "full_name": current_user.full_name,
+            "email": current_user.email,
+            "role": current_user.role,
+            "status": current_user.status,
+            "account": {
+                "id": account.account_id if account else None,
+                "balance": float(account.balance) if account else 0.0
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user/balance", response_model=dict)
+async def get_user_balance(current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        
+        return {
+            "balance": float(account.balance)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/checkout", response_model=OrderResponse)
+async def process_checkout(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's cart
+        cart = db.query(Cart).filter(Cart.user_id == current_user.user_id).first()
+        if not cart:
+            raise HTTPException(status_code=404, detail="Cart not found")
+        
+        # Get cart items
+        cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
+        if not cart_items:
+            raise HTTPException(status_code=400, detail="Cart is empty")
+        
+        # Calculate total and check stock
+        total = 0
+        order_items = []
+        
+        for item in cart_items:
+            product = db.query(Product).filter(Product.product_id == item.product_id).first()
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
+            if product.stock < item.quantity:
+                raise HTTPException(status_code=400, detail=f"Not enough stock for product {product.name}")
+            total += item.quantity * product.price
+            order_items.append((product, item.quantity))
+        
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+        if account.balance < total:
+            raise HTTPException(status_code=400, detail="Insufficient balance")
+        
+        # Create order
+        db_order = Order(
+            user_id=current_user.user_id,
+            account_id=account.account_id,
+            total_amount=total,
+            status=OrderStatus.pending,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(db_order)
+        db.commit()
+        db.refresh(db_order)
+        
+        # Create order items and update stock
+        for product, quantity in order_items:
+            order_item = OrderItem(
+                order_id=db_order.order_id,
+                product_id=product.product_id,
+                quantity=quantity,
+                price_at_time=product.price,
+                created_at=datetime.utcnow()
+            )
+            db.add(order_item)
+            product.stock -= quantity
+            product.updated_at = datetime.utcnow()
+        
+        # Update account balance
+        account.balance -= total
+        
+        # Create transaction
+        transaction = Transactions(
+            account_id=account.account_id,
+            amount=total,
+            transaction_type=TransactionType.purchase,
+            status=TransactionStatus.completed,
+            created_at=datetime.utcnow()
+        )
+        db.add(transaction)
+        
+        # Clear cart
+        db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()
+        
+        # Log order
+        log = Logs(
+            user_id=current_user.user_id,
+            action="order_creation",
+            description=f"Order {db_order.order_id} created for user {current_user.user_id} with total amount {total}",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+        
+        db.commit()
+        
+        return {
+            "order_id": db_order.order_id,
+            "total_amount": total,
+            "status": db_order.status,
+            "items": [{"product_id": item[0].product_id, "quantity": item[1]} for item in order_items]
         }
     except Exception as e:
         db.rollback()
