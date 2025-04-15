@@ -9,7 +9,7 @@ import Products from './components/Products';
 import Cart from './components/Cart';
 import Checkout from './components/Checkout';
 import OrderConfirmation from './components/OrderConfirmation';
-import Orders from './components/Orders';
+import MyOrders from './components/MyOrders';
 import MerchantDashboard from './components/MerchantDashboard';
 import MerchantLogin from './components/MerchantLogin';
 import MerchantSignup from './components/MerchantSignup';
@@ -19,20 +19,27 @@ import ProductDetails from './components/ProductDetails';
 import MerchantProfile from './components/MerchantProfile';
 import UserProfile from './components/UserProfile';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import Wallet from './components/Wallet';
 
 const PrivateRoute = ({ children, roles }) => {
   const { user } = useAuth();
   const location = useLocation();
   
+  console.log('PrivateRoute rendering with path:', location.pathname);
+  console.log('User authenticated:', !!user);
+  
   if (!user) {
     // Redirect to login while saving the attempted URL
+    console.log('Redirecting to login, no user found');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   if (roles && !roles.includes(user.role)) {
+    console.log('User role not authorized:', user.role, 'Required roles:', roles);
     return <Navigate to="/dashboard" replace />;
   }
   
+  console.log('Rendering protected component for path:', location.pathname);
   return children;
 };
 
@@ -77,7 +84,7 @@ function App() {
             } />
             <Route path="/orders" element={
               <PrivateRoute>
-                <Orders />
+                <MyOrders />
               </PrivateRoute>
             } />
             <Route path="/merchant" element={
@@ -91,6 +98,11 @@ function App() {
             <Route path="/admin" element={
               <PrivateRoute roles={['admin']}>
                 <AdminDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/wallet" element={
+              <PrivateRoute>
+                <Wallet />
               </PrivateRoute>
             } />
           </Routes>
