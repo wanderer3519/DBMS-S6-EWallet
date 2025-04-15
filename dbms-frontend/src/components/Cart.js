@@ -86,10 +86,12 @@ const Cart = () => {
                     }
                 }
             );
+            // Refresh cart after successful update
             fetchCartItems();
         } catch (err) {
             console.error('Error updating quantity:', err);
-            setError('Failed to update quantity. Please try again.');
+            console.error('Response data:', err.response?.data);
+            setError(err.response?.data?.detail || 'Failed to update quantity. Please try again.');
         }
     };
 
@@ -112,7 +114,13 @@ const Cart = () => {
             setError('Your cart is empty. Please add items before checkout.');
             return;
         }
-        navigate('/checkout');
+        console.log('Navigating to checkout page...');
+        try {
+            navigate('/checkout');
+            console.log('Navigation called successfully');
+        } catch (err) {
+            console.error('Navigation error:', err);
+        }
     };
 
     const handleBackToDashboard = () => {

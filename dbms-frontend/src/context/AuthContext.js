@@ -10,23 +10,33 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      const storedToken = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
-      if (userData) {
+      
+      if (storedToken && userData) {
         try {
+          // Set token in component state
+          setToken(storedToken);
+          
+          // Set default authorization header for axios
+          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          
           const parsedUser = JSON.parse(userData);
-          if (parsedUser.access_token && parsedUser.user_id) {
-            // Set default authorization header
-            axios.defaults.headers.common['Authorization'] = `Bearer ${parsedUser.access_token}`;
-            
-            // Verify token by making a request to get user data
+          if (parsedUser.user_id) {
+            // We'll validate the token by making a request to get the user profile
             try {
-              const endpoint = parsedUser.role === 'merchant' 
-                ? `http://localhost:8000/merchant/profile/${parsedUser.user_id}`
-                : `http://localhost:8000/user/profile/${parsedUser.user_id}`;
+              // Get user profile endpoint determined by role
+              const endpoint = 'http://localhost:8000/api/account/profile';
               
-              const response = await axios.get(endpoint);
+              const response = await axios.get(endpoint, {
+                headers: {
+                  Authorization: `Bearer ${storedToken}`
+                }
+              });
+              
               if (response.data) {
                 setUser({ ...parsedUser, ...response.data });
+                console.log('User authenticated from stored credentials');
               } else {
                 throw new Error('Invalid user data');
               }
@@ -34,15 +44,18 @@ export const AuthProvider = ({ children }) => {
               console.error('Error verifying token:', error);
               // If token is invalid, clear user data
               localStorage.removeItem('user');
+              localStorage.removeItem('token');
               delete axios.defaults.headers.common['Authorization'];
             }
           } else {
             // If user data is incomplete, clear it
             localStorage.removeItem('user');
+            localStorage.removeItem('token');
           }
         } catch (error) {
           console.error('Error parsing user data:', error);
           localStorage.removeItem('user');
+          localStorage.removeItem('token');
         }
       }
       setLoading(false);
@@ -59,8 +72,10 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (response.data.access_token) {
+        const tokenValue = response.data.access_token;
+        
         // Set the authorization header for all future requests
-        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+        axios.defaults.headers.common['Authorization'] = `Bearer ${tokenValue}`;
         
         const userData = {
           user_id: response.data.user_id,
@@ -70,10 +85,15 @@ export const AuthProvider = ({ children }) => {
           account: response.data.account
         };
 
-        localStorage.setItem('token', response.data.access_token);
+        // Store token and user data in localStorage
+        localStorage.setItem('token', tokenValue);
         localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Update state
         setUser(userData);
-        setToken(response.data.access_token);
+        setToken(tokenValue);
+        
+        console.log('Login successful, token stored');
         return { success: true };
       }
       return { success: false, error: 'Invalid response from server' };
