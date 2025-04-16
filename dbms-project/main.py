@@ -62,6 +62,7 @@ class UserCreate(BaseModel):
     password: str
     role: UserRole = UserRole.customer
     contact: Optional[str] = None
+    address: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -173,6 +174,8 @@ class UserProfileResponse(BaseModel):
     status: UserStatus
     created_at: datetime
     accounts: List[AccountResponse]
+    address: Optional[str] = None
+    contact: Optional[str] = None                                                                                                                       
 
     class Config:
         from_attributes = True
@@ -1413,7 +1416,7 @@ async def get_categories(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Error fetching categories")
 
 @app.get("/api/account/profile", response_model=UserProfileResponse)
-async def get_profile(current_user: Users = Depends(get_current_user)):
+async def get_profile(current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)):
     # Get user accounts
     accounts = db.query(Account).filter(Account.user_id == current_user.user_id).all()
     
