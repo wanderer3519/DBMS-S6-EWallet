@@ -20,6 +20,9 @@ const UserProfile = () => {
         confirm_password: ''
     });
     const [successMessage, setSuccessMessage] = useState('');
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const navigate = useNavigate();
 
     // Load initial data when component mounts
@@ -252,6 +255,63 @@ const UserProfile = () => {
         }).format(amount || 0);
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleImageUpload = async () => {
+        if (!imageFile) return;
+
+        try {
+            setUploadingImage(true);
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setError('You must be logged in to upload a profile image');
+                setUploadingImage(false);
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', imageFile);
+
+            // Configure axios with the token
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            
+            const response = await axios.post(
+                'http://localhost:8000/api/account/upload-profile-image',
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
+            );
+
+            // Update the user state with the new profile image
+            setUser({
+                ...user,
+                profile_image: response.data.profile_image
+            });
+            
+            setSuccessMessage('Profile image updated successfully!');
+            setTimeout(() => setSuccessMessage(''), 3000);
+            setImageFile(null);
+        } catch (err) {
+            console.error('Error uploading profile image:', err);
+            setError('Failed to upload profile image. Please try again.');
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
     if (loading) {
         return <div className="loading">Loading profile information...</div>;
     }
@@ -260,6 +320,50 @@ const UserProfile = () => {
         <div className="user-profile-container">
             {/* Profile Header */}
             <div className="profile-header">
+                <div className="profile-image-container">
+                    {user?.profile_image ? (
+                        <img 
+                            src={`http://localhost:8000${user.profile_image}`} 
+                            alt="Profile" 
+                            className="profile-image"
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "https://via.placeholder.com/150?text=Profile";
+                            }}
+                        />
+                    ) : imagePreview ? (
+                        <img 
+                            src={imagePreview} 
+                            alt="Profile Preview" 
+                            className="profile-image"
+                        />
+                    ) : (
+                        <div className="profile-image-placeholder">
+                            {user?.full_name?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                    )}
+                    <div className="profile-image-upload">
+                        <input 
+                            type="file" 
+                            id="profile-image-input" 
+                            accept="image/*" 
+                            onChange={handleImageChange}
+                            style={{ display: 'none' }}
+                        />
+                        <label htmlFor="profile-image-input" className="profile-image-label">
+                            Choose Image
+                        </label>
+                        {imageFile && (
+                            <button 
+                                className="upload-image-btn"
+                                onClick={handleImageUpload}
+                                disabled={uploadingImage}
+                            >
+                                {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                            </button>
+                        )}
+                    </div>
+                </div>
                 <div className="header-content">
                     <h1>{user?.full_name || 'User'}</h1>
                     <p className="user-email">{user?.email || 'Not available'}</p>
