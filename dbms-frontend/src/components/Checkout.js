@@ -332,7 +332,7 @@ const Checkout = () => {
                             <>
                                 <p>You will earn <strong>{estimatedRewardPoints} points</strong> on this purchase when using any mode of payment except Cash on Delivery.</p>
                                 <p className="auto-conversion-note">
-                                    <strong>Convert to Wallet:</strong> These points (worth ₹{(estimatedRewardPoints * 0.1).toFixed(2)}) can be converted to wallet balance in your wallet section!
+                                    <strong>Automatic Conversion:</strong> These points (worth ₹{(estimatedRewardPoints * 0.1).toFixed(2)}) will be automatically added to your E-Wallet balance!
                                 </p>
                             </>
                         ) : (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Dashboard.css';
 // ... [imports remain unchanged]
@@ -16,16 +16,17 @@ const Dashboard = () => {
     const [balance, setBalance] = useState(null);
     const [showBalance, setShowBalance] = useState(false);
     const [cartItemCount, setCartItemCount] = useState(0);
+    const [rewardPoints, setRewardPoints] = useState({
+        total_points: 0,
+        points_value: 0
+    });
+    const [convertingPoints, setConvertingPoints] = useState(false);
     // Simplified tracking of recent rewards activity
     const [recentRewards, setRecentRewards] = useState({
         hasRecent: false,
         amount: 0,
     });
     const navigate = useNavigate();
-    const [featuredProducts, setFeaturedProducts] = useState([]);
-    const [walletBalance, setWalletBalance] = useState(0);
-    const [rewardPoints, setRewardPoints] = useState(0);
-    const [rewardValue, setRewardValue] = useState(0);
 
     useEffect(() => {
         console.log("Dashboard mounted.");
@@ -37,20 +38,13 @@ const Dashboard = () => {
         }
         fetchProducts();
         fetchUserData();
-        checkRecentRewardsActivity();
-        fetchFeaturedProducts();
-        fetchCategories();
-        fetchWalletBalance();
         fetchRewardPoints();
+        checkRecentRewardsActivity();
     }, [navigate]);
 
     const fetchProducts = async () => {
         try {
-            const url = selectedCategory 
-                ? `http://localhost:8000/products/category/${selectedCategory}`
-                : 'http://localhost:8000/products';
-                
-            const response = await axios.get(url);
+            const response = await axios.get('http://localhost:8000/products');
             console.log("Products fetched:", response.data);
             setAllProducts(response.data);
             setProducts(response.data);
@@ -61,9 +55,9 @@ const Dashboard = () => {
             setCategories(uniqueCategories);
 
             setLoading(false);
-        } catch (err) {
-            console.error('Error fetching products:', err);
-            setError('Failed to load products');
+        } catch (error) {
+            console.error('Error fetching products:', error);
+            setError('Failed to load products. Please try again.');
             setLoading(false);
         }
     };
@@ -101,6 +95,38 @@ const Dashboard = () => {
                 navigate('/login');
             }
         }
+    };
+
+    const fetchRewardPoints = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const response = await axios.get('http://localhost:8000/api/account/rewards', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            console.log("Reward points data:", response.data);
+            setRewardPoints(response.data);
+        } catch (error) {
+            console.error('Error fetching reward points:', error);
+        }
+    };
+
+    const navigateToConversion = (event) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        if (rewardPoints.total_points <= 0) {
+            alert('You have no reward points to convert.');
+            return false;
+        }
+        
+        // Navigate to the conversion page
+        navigate('/dashboard/conversion');
+        return false;
     };
 
     // Check for recent reward point conversions from localStorage
@@ -180,62 +206,6 @@ const Dashboard = () => {
         navigate('/cart');
     };
 
-    const fetchFeaturedProducts = async () => {
-        try {
-            const response = await axios.get('http://localhost:8000/featured/products');
-            setFeaturedProducts(response.data);
-            setLoading(false);
-        } catch (err) {
-            console.error('Error fetching featured products:', err);
-            setError('Failed to load featured products');
-            setLoading(false);
-        }
-    };
-
-    const fetchCategories = async () => {
-        try {
-            const response = await axios.get('http://localhost:8000/products/categories');
-            setCategories(response.data);
-        } catch (err) {
-            console.error('Error fetching categories:', err);
-        }
-    };
-    
-    const fetchWalletBalance = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await axios.get('http://localhost:8000/api/account/balance', {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            
-            setWalletBalance(response.data.balance);
-        } catch (err) {
-            console.error('Error fetching wallet balance:', err);
-        }
-    };
-    
-    const fetchRewardPoints = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await axios.get('http://localhost:8000/api/account/rewards', {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            
-            setRewardPoints(response.data.total_points);
-            setRewardValue(response.data.points_value);
-        } catch (err) {
-            console.error('Error fetching reward points:', err);
-        }
-    };
-
     if (loading) return <div className="loading">Loading products...</div>;
     if (error) return <div className="error">{error}</div>;
 
@@ -244,7 +214,28 @@ const Dashboard = () => {
             <div className="dashboard-header">
                 <div className="dashboard-title">
                     <h1>Welcome, {user?.full_name || 'User'}!</h1>
-                    <p className="balance">Wallet Balance: ₹{balance?.toFixed(2) || '0.00'}</p>
+                    <div className="wallet-rewards-container">
+                        <p className="balance">Wallet Balance: ₹{balance?.toFixed(2) || '0.00'}</p>
+                        {rewardPoints.total_points > 0 && (
+                            <div className="reward-points-display">
+                                <div className="reward-points-info">
+                                    <p>Reward Points: {rewardPoints.total_points} points (worth ₹{rewardPoints.points_value?.toFixed(2) || '0.00'})</p>
+                                    <p className="rewards-hint">Click the button to open conversion page</p>
+                                </div>
+                                <button 
+                                    type="button"
+                                    className="convert-rewards-btn"
+                                    onClick={(e) => {
+                                        navigateToConversion(e);
+                                        return false;
+                                    }}
+                                    disabled={convertingPoints || rewardPoints.total_points <= 0}
+                                >
+                                    {convertingPoints ? 'Please wait...' : 'Go to Conversion Page'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     
                     {/* Recent rewards notification */}
                     {recentRewards.hasRecent && (
@@ -284,33 +275,8 @@ const Dashboard = () => {
                     <button className="action-button" onClick={() => navigate('/orders')}>
                         📦 My Orders
                     </button>
-                </div>
-            </div>
-
-            <div className="wallet-rewards-summary">
-                <div className="wallet-summary">
-                    <h2>Wallet Balance</h2>
-                    <p className="balance-amount">₹{walletBalance.toFixed(2)}</p>
-                    <button 
-                        className="manage-wallet-btn"
-                        onClick={() => navigate('/wallet')}
-                    >
-                        Manage Wallet
-                    </button>
-                </div>
-                
-                <div className="rewards-summary">
-                    <h2>Reward Points</h2>
-                    <p className="points-info">
-                        <span className="points-count">{rewardPoints} points</span>
-                        <span className="points-value">(Worth ₹{rewardValue.toFixed(2)})</span>
-                    </p>
-                    <button 
-                        className="convert-points-btn"
-                        onClick={() => navigate('/wallet')}
-                        disabled={rewardPoints <= 0}
-                    >
-                        Convert to Wallet
+                    <button className="action-button" onClick={() => navigate('/profile')}>
+                        👤 My Profile
                     </button>
                 </div>
             </div>
@@ -370,39 +336,6 @@ const Dashboard = () => {
                         </div>
                     </div>
                 ))}
-            </div>
-
-            <div className="featured-products">
-                <h2>Featured Products</h2>
-                <div className="product-grid">
-                    {featuredProducts.map(product => (
-                        <div key={product.product_id} className="product-card">
-                            <div className="product-image-container">
-                                <img 
-                                    src={product.image_url || 'https://via.placeholder.com/150'} 
-                                    alt={product.name} 
-                                    className="product-image"
-                                    onClick={() => navigate(`/product/${product.product_id}`)}
-                                />
-                            </div>
-                            <div className="product-details">
-                                <h3 className="product-name">{product.name}</h3>
-                                <p className="product-price">
-                                    <span className="current-price">₹{product.price}</span>
-                                    {product.mrp > product.price && (
-                                        <span className="original-price">₹{product.mrp}</span>
-                                    )}
-                                </p>
-                                <button 
-                                    className="view-product-btn"
-                                    onClick={() => navigate(`/product/${product.product_id}`)}
-                                >
-                                    View Details
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
             </div>
         </div>
     );

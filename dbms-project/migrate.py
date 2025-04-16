@@ -2,6 +2,10 @@ from sqlalchemy import create_engine, text
 from models import Base
 import os
 from dotenv import load_dotenv
+import os
+from sqlalchemy import Column, Integer, String, ForeignKey, DECIMAL, Enum, TIMESTAMP, Text, MetaData, Table
+from sqlalchemy.ext.declarative import declarative_base
+from database import engine, Base, get_db
 
 load_dotenv()
 
@@ -67,5 +71,70 @@ def run_migration():
     
     print("Database migration completed successfully!")
 
+def migrate_orders_table():
+    # Create a connection to the database
+    connection = engine.connect()
+    
+    try:
+        # Check if payment_method column exists
+        result = connection.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='orders' AND column_name='payment_method';
+        """))
+        
+        if result.rowcount == 0:
+            print("Adding payment_method column to orders table...")
+            connection.execute(text("""
+                ALTER TABLE orders 
+                ADD COLUMN payment_method VARCHAR(50) NULL;
+            """))
+            print("payment_method column added successfully!")
+        else:
+            print("payment_method column already exists.")
+        
+        # Check if wallet_amount column exists
+        result = connection.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='orders' AND column_name='wallet_amount';
+        """))
+        
+        if result.rowcount == 0:
+            print("Adding wallet_amount column to orders table...")
+            connection.execute(text("""
+                ALTER TABLE orders 
+                ADD COLUMN wallet_amount DECIMAL(10, 2) DEFAULT 0;
+            """))
+            print("wallet_amount column added successfully!")
+        else:
+            print("wallet_amount column already exists.")
+        
+        # Check if reward_discount column exists
+        result = connection.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='orders' AND column_name='reward_discount';
+        """))
+        
+        if result.rowcount == 0:
+            print("Adding reward_discount column to orders table...")
+            connection.execute(text("""
+                ALTER TABLE orders 
+                ADD COLUMN reward_discount DECIMAL(10, 2) DEFAULT 0;
+            """))
+            print("reward_discount column added successfully!")
+        else:
+            print("reward_discount column already exists.")
+            
+        connection.commit()
+        print("Migration completed successfully!")
+        
+    except Exception as e:
+        print(f"Error during migration: {e}")
+    finally:
+        connection.close()
+
 if __name__ == "__main__":
-    run_migration() 
+    run_migration()
+    migrate_orders_table() 

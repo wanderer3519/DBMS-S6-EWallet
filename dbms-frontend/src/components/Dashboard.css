@@ -849,88 +849,74 @@
     background-color: #45a049;
 }
 
-/* Add styles for the wallet and rewards summary */
-.wallet-rewards-summary {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin: 20px 0 30px;
-}
-
-.wallet-summary, .rewards-summary {
-    background-color: #fff;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    transition: transform 0.3s ease;
-}
-
-.wallet-summary:hover, .rewards-summary:hover {
-    transform: translateY(-5px);
-}
-
-.wallet-summary h2, .rewards-summary h2 {
-    color: #333;
-    margin-bottom: 10px;
-    font-size: 1.4rem;
-}
-
-.balance-amount, .points-count {
-    font-size: 1.8rem;
-    font-weight: bold;
-    color: #2c3e50;
-    display: block;
-    margin: 10px 0;
-}
-
-.points-info {
+/* Add these styles */
+.wallet-rewards-container {
     display: flex;
     flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.reward-points-display {
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    background-color: #f3f4f6;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-top: 0.5rem;
 }
 
-.points-value {
-    font-size: 1.1rem;
-    color: #666;
-    margin-bottom: 10px;
+.reward-points-display p {
+    margin: 0;
+    color: #6B7280;
+    font-size: 0.95rem;
 }
 
-.manage-wallet-btn, .convert-points-btn {
-    padding: 10px 20px;
-    font-size: 1rem;
+.convert-rewards-btn {
+    background-color: #4F46E5;
+    color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
 }
 
-.manage-wallet-btn {
-    background-color: #4CAF50;
-    color: white;
+.convert-rewards-btn:hover {
+    background-color: #4338CA;
 }
 
-.manage-wallet-btn:hover {
-    background-color: #45a049;
-}
-
-.convert-points-btn {
-    background-color: #2196F3;
-    color: white;
-}
-
-.convert-points-btn:hover {
-    background-color: #0b7dda;
-}
-
-.convert-points-btn:disabled {
-    background-color: #cccccc;
+.convert-rewards-btn:disabled {
+    background-color: #9CA3AF;
     cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
-    .wallet-rewards-summary {
-        grid-template-columns: 1fr;
+    .reward-points-display {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
     }
+    
+    .convert-rewards-btn {
+        width: 100%;
+    }
+}
+
+/* Add these styles */
+.reward-points-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.rewards-hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6B7280;
+    font-style: italic;
 }
       

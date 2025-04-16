@@ -154,6 +154,10 @@ class OrderResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemResponse] = []
+    payment_method: Optional[str] = None
+    wallet_amount: Optional[float] = 0
+    reward_discount: Optional[float] = 0
+    reward_points_earned: Optional[int] = 0
 
     class Config:
         from_attributes = True

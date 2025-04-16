@@ -18,8 +18,8 @@ import MerchantLogs from './components/MerchantLogs';
 import ProductDetails from './components/ProductDetails';
 import MerchantProfile from './components/MerchantProfile';
 import UserProfile from './components/UserProfile';
+import RewardsConversion from './components/RewardsConversion';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Wallet from './components/Wallet';
 
 const PrivateRoute = ({ children, roles }) => {
   const { user } = useAuth();
@@ -60,6 +60,11 @@ function App() {
                 <Dashboard />
               </PrivateRoute>
             } />
+            <Route path="/dashboard/conversion" element={
+              <PrivateRoute>
+                <RewardsConversion />
+              </PrivateRoute>
+            } />
             <Route path="/profile" element={
               <PrivateRoute>
                 <UserProfile />
@@ -98,11 +103,6 @@ function App() {
             <Route path="/admin" element={
               <PrivateRoute roles={['admin']}>
                 <AdminDashboard />
-              </PrivateRoute>
-            } />
-            <Route path="/wallet" element={
-              <PrivateRoute>
-                <Wallet />
               </PrivateRoute>
             } />
           </Routes>
