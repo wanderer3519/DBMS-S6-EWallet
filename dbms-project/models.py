@@ -65,6 +65,7 @@ class Users(Base):
     phone = Column(String(12), nullable=True)
     created_at = Column(TIMESTAMP)
     password_hash = Column(String)
+    profile_image = Column(String(255), nullable=True)
 
 class Account(Base):
     __tablename__ = "account"

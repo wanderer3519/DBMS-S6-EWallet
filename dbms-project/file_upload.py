@@ -5,6 +5,7 @@ import aiofiles
 from datetime import datetime
 
 UPLOAD_DIR = "uploads/products"
+PROFILE_UPLOAD_DIR = "uploads/profiles"
 
 async def save_uploaded_file(file: UploadFile) -> str:
     """
@@ -29,6 +30,30 @@ async def save_uploaded_file(file: UploadFile) -> str:
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+
+async def save_profile_image(file: UploadFile, user_id: int) -> str:
+    """
+    Save a user profile image and return its relative path
+    """
+    try:
+        # Create upload directory if it doesn't exist
+        os.makedirs(PROFILE_UPLOAD_DIR, exist_ok=True)
+        
+        # Generate filename with user id
+        file_extension = os.path.splitext(file.filename)[1]
+        filename = f"profile_{user_id}_{uuid.uuid4()}{file_extension}"
+        file_path = os.path.join(PROFILE_UPLOAD_DIR, filename)
+        
+        # Save the file
+        content = await file.read()
+        async with aiofiles.open(file_path, 'wb') as out_file:
+            await out_file.write(content)
+        
+        # Return the relative path that can be used in URLs
+        return f"/uploads/profiles/{filename}"
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving profile image: {str(e)}")
 
 def get_full_path(relative_path: str) -> str:
     """

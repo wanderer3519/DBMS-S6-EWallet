@@ -461,6 +461,7 @@ const MerchantDashboard = () => {
       
       setLoading(true); // Show loading state during update
       
+      // Send the update request
       const response = await axios.put(
         `http://localhost:8000/api/merchant/products/${selectedProduct.product_id}`,
         updateData,
@@ -490,12 +491,20 @@ const MerchantDashboard = () => {
         // Show success message
         setSuccessMessage('Product updated successfully! Refreshing product list...');
         
-        // Simply refresh all products after update
-        await refreshAllProducts();
-        
-        // Update the success message
-        setSuccessMessage('Product updated successfully!');
-        setTimeout(() => setSuccessMessage(''), 5000);
+        try {
+          // Simply refresh all products after update
+          await refreshAllProducts();
+          
+          // Update the success message
+          setSuccessMessage('Product updated successfully!');
+          setTimeout(() => setSuccessMessage(''), 5000);
+        } catch (refreshError) {
+          console.error('Error refreshing products:', refreshError);
+          // Even if refresh fails, the update was successful
+          setSuccessMessage('Product updated successfully! Please refresh the page to see updates.');
+          setTimeout(() => setSuccessMessage(''), 5000);
+          setLoading(false);
+        }
       }
     } catch (error) {
       console.error('Error updating product:', error);

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form, Body
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form, Body, Request
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants, RewardPoints, RewardStatus
@@ -18,7 +18,7 @@ from passlib.context import CryptContext
 from dotenv import load_dotenv
 from sqlalchemy import func
 import schemas
-from file_upload import save_uploaded_file, delete_file
+from file_upload import save_uploaded_file, delete_file, save_profile_image
 import base64
 from decimal import Decimal
 
@@ -44,7 +44,10 @@ UPLOAD_DIR = "uploads"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-# Mount static files directory
+# Mount static files directory for uploads
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("uploads/products", exist_ok=True)
+os.makedirs("uploads/profiles", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # JWT configuration
@@ -1436,23 +1439,40 @@ async def update_profile(
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    for field, value in profile_update.dict(exclude_unset=True).items():
-        setattr(current_user, field, value)
-    db.commit()
-    db.refresh(current_user)
-    
-    # Get user accounts
-    accounts = db.query(Account).filter(Account.user_id == current_user.user_id).all()
-    
-    return {
-        "user_id": current_user.user_id,
-        "full_name": current_user.full_name,
-        "email": current_user.email,
-        "role": current_user.role,
-        "status": current_user.status,
-        "created_at": current_user.created_at,
-        "accounts": accounts
-    }
+    try:
+        # Update user profile fields
+        for field, value in profile_update.dict(exclude_unset=True).items():
+            setattr(current_user, field, value)
+        
+        db.commit()
+        db.refresh(current_user)
+        
+        # Log the profile update
+        log = Logs(
+            user_id=current_user.user_id,
+            action="profile_update",
+            description=f"User {current_user.user_id} updated profile information",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+        db.commit()
+        
+        # Get user accounts
+        accounts = db.query(Account).filter(Account.user_id == current_user.user_id).all()
+        
+        return {
+            "user_id": current_user.user_id,
+            "full_name": current_user.full_name,
+            "email": current_user.email,
+            "role": current_user.role,
+            "status": current_user.status,
+            "created_at": current_user.created_at,
+            "profile_image": current_user.profile_image,
+            "accounts": accounts
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/account/password")
 async def change_password(
@@ -1635,6 +1655,7 @@ async def create_merchant_product(
 @app.put("/api/merchant/products/{product_id}", response_model=ProductResponse)
 async def update_merchant_product(
     product_id: int,
+    request: Request,
     name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     price: Optional[float] = Form(None),
@@ -1658,6 +1679,26 @@ async def update_merchant_product(
         ).first()
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
+            
+        # Determine if this is a JSON request or a form request
+        content_type = request.headers.get("Content-Type", "")
+        is_json = "application/json" in content_type
+        
+        # If this is a JSON request, parse the JSON body
+        if is_json:
+            try:
+                json_data = await request.json()
+                name = json_data.get("name", name)
+                description = json_data.get("description", description)
+                price = json_data.get("price", price)
+                mrp = json_data.get("mrp", mrp)
+                stock = json_data.get("stock", stock)
+                business_category = json_data.get("business_category", business_category)
+                # Note: JSON requests can't handle file uploads, so image remains None
+            except Exception as e:
+                # If JSON parsing fails, continue with form data
+                print(f"Error parsing JSON: {e}")
+                pass
 
         # Update fields if provided
         if name is not None:
@@ -1674,10 +1715,10 @@ async def update_merchant_product(
             product.business_category = business_category
 
         # Handle image update
-        if image is not None:
+        if image is not None and image.filename:
             # Delete old image if exists
             if product.image_url:
-                delete_file(product.image_url)
+                await delete_file(product.image_url)
             
             # Save new image
             product.image_url = await save_uploaded_file(image)
@@ -1691,6 +1732,16 @@ async def update_merchant_product(
 
         db.commit()
         db.refresh(product)
+        
+        # Add a log entry for this update
+        log = Logs(
+            user_id=current_user.user_id,
+            action="product_update",
+            description=f"Updated product {product.name} (ID: {product.product_id})",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+        db.commit()
 
         return product
     except Exception as e:
@@ -2578,4 +2629,56 @@ async def convert_reward_points_to_wallet(user_id: int, earned_points: int, db: 
     db.add(log)
     
     return float(reward_value)
+
+# Function to delete files (used for product images)
+async def delete_file(file_path: str):
+    """
+    Delete a file from the filesystem
+    """
+    try:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+    return False
+
+@app.post("/api/account/upload-profile-image")
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Delete old image if exists
+        if current_user.profile_image:
+            old_image_path = current_user.profile_image
+            delete_file(old_image_path)
+        
+        # Save the new profile image
+        image_url = await save_profile_image(file, current_user.user_id)
+        
+        # Update user profile in database
+        current_user.profile_image = image_url
+        db.commit()
+        db.refresh(current_user)
+        
+        # Log the profile image update
+        log = Logs(
+            user_id=current_user.user_id,
+            action="profile_update",
+            description=f"User {current_user.user_id} updated profile image",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+        db.commit()
+        
+        return {"profile_image": image_url}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 

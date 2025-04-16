@@ -29,6 +29,7 @@ class User(UserBase):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
+    profile_image: Optional[str] = None
 
 class PasswordUpdate(BaseModel):
     current_password: str
@@ -179,6 +180,7 @@ class UserProfileResponse(BaseModel):
     role: UserRole
     status: UserStatus
     created_at: datetime
+    profile_image: Optional[str] = None
     accounts: List[AccountResponse]
 
     class Config:

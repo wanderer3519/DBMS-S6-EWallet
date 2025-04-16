@@ -6,6 +6,7 @@ import os
 from sqlalchemy import Column, Integer, String, ForeignKey, DECIMAL, Enum, TIMESTAMP, Text, MetaData, Table
 from sqlalchemy.ext.declarative import declarative_base
 from database import engine, Base, get_db
+import psycopg2
 
 load_dotenv()
 
@@ -135,6 +136,37 @@ def migrate_orders_table():
     finally:
         connection.close()
 
+def get_db_connection():
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/wallet_db")
+    return psycopg2.connect(DATABASE_URL)
+
+def migrate_users_table():
+    """
+    Add profile_image column to the users table
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    try:
+        # Check if profile_image column exists in users table
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='profile_image'")
+        if cur.fetchone() is None:
+            print("Adding profile_image column to users table...")
+            cur.execute("ALTER TABLE users ADD COLUMN profile_image VARCHAR(255)")
+            print("profile_image column added successfully.")
+        else:
+            print("profile_image column already exists.")
+        
+        conn.commit()
+        print("Users table migration completed successfully.")
+    except Exception as e:
+        conn.rollback()
+        print(f"Error migrating users table: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
 if __name__ == "__main__":
     run_migration()
-    migrate_orders_table() 
+    migrate_orders_table()
+    migrate_users_table()
