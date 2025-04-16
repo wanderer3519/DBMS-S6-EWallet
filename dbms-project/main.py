@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form, Body
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
-from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
+from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants, RewardPoints, RewardStatus
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta
@@ -20,6 +20,7 @@ from sqlalchemy import func
 import schemas
 from file_upload import save_uploaded_file, delete_file
 import base64
+from decimal import Decimal
 
 # Load environment variables
 load_dotenv()
@@ -857,97 +858,383 @@ async def update_cart_item(
 
 # Order Endpoints
 @app.post("/orders/", response_model=OrderResponse)
-def create_order(order: OrderCreate, user_id: int, db: Session = Depends(get_db)):
-    # Get cart
-    cart = db.query(Cart).filter(Cart.user_id == user_id).first()
-    if not cart:
-        raise HTTPException(status_code=400, detail="Cart is empty")
-    
-    # Calculate total and check stock
-    cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
-    total = 0
-    order_items = []
-    
-    for item in cart_items:
-        product = db.query(Product).filter(Product.product_id == item.product_id).first()
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
-        if product.stock < item.quantity:
-            raise HTTPException(status_code=400, detail=f"Not enough stock for product {product.name}")
-        total += item.quantity * product.price
-        order_items.append((product, item.quantity))
-    
-    # Check account balance
-    account = db.query(Account).filter(Account.account_id == order.account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    if account.balance < total:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
-    
-    # Create order
-    db_order = Order(
-        user_id=user_id,
-        account_id=order.account_id,
-        total_amount=total,
-        status=OrderStatus.pending,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
-    
-    # Create order items and update stock
-    for product, quantity in order_items:
-        order_item = OrderItem(
-            order_id=db_order.order_id,
-            product_id=product.product_id,
-            quantity=quantity,
-            price_at_time=product.price,
+def create_order(
+    order: OrderCreate,
+    payment_method: str = Body(...),
+    use_wallet: bool = Body(False),
+    use_rewards: bool = Body(False),
+    reward_points: Optional[int] = Body(None),
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get cart
+        cart = db.query(Cart).filter(Cart.user_id == current_user.user_id).first()
+        if not cart:
+            raise HTTPException(status_code=404, detail="Cart not found")
+
+        # Calculate total amount
+        cart_items = db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).all()
+        if not cart_items:
+            raise HTTPException(status_code=400, detail="Cart is empty")
+
+        total = 0
+        order_items = []
+        for cart_item in cart_items:
+            product = db.query(Product).filter(Product.product_id == cart_item.product_id).first()
+            if not product:
+                raise HTTPException(status_code=404, detail=f"Product {cart_item.product_id} not found")
+            
+            if product.stock < cart_item.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for product {product.name}"
+                )
+            
+            total += product.price * cart_item.quantity
+            order_items.append((product, cart_item.quantity))
+
+        # Apply rewards if requested
+        reward_discount = 0
+        if use_rewards and reward_points:
+            available_rewards = db.query(RewardPoints).filter(
+                RewardPoints.user_id == current_user.user_id,
+                RewardPoints.status == RewardStatus.earned
+            ).all()
+            total_points = sum(reward.points for reward in available_rewards)
+
+            if reward_points > total_points:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient reward points. Available: {total_points}"
+                )
+
+            reward_discount = float(reward_points * 0.1)
+            total -= reward_discount
+
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+
+        # Handle wallet payment
+        wallet_amount = 0
+        remaining_amount = total
+        if use_wallet:
+            wallet_amount = min(account.balance, total)
+            remaining_amount = total - wallet_amount
+
+            if wallet_amount > 0:
+                # Deduct from wallet
+                account.balance -= wallet_amount
+
+                # Create wallet transaction
+                wallet_transaction = Transactions(
+                    account_id=account.account_id,
+                    amount=wallet_amount,
+                    transaction_type=TransactionType.purchase,
+                    status=TransactionStatus.completed,
+                    created_at=datetime.utcnow()
+                )
+                db.add(wallet_transaction)
+
+        # Handle remaining amount with other payment method if needed
+        if remaining_amount > 0 and payment_method not in ['card', 'upi']:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid payment method for remaining amount"
+            )
+
+        # Create order
+        db_order = Order(
+            user_id=current_user.user_id,
+            total_amount=total,
+            wallet_amount=wallet_amount,
+            reward_discount=reward_discount,
+            payment_method=payment_method,
+            status=OrderStatus.completed,
             created_at=datetime.utcnow()
         )
-        db.add(order_item)
-        product.stock -= quantity
-        product.updated_at = datetime.utcnow()
-    
-    # Update account balance
-    account.balance -= total
-    
-    # Create transaction
-    transaction = Transactions(
-        account_id=order.account_id,
-        amount=total,
-        transaction_type=TransactionType.purchase,
-        status=TransactionStatus.completed,
-        created_at=datetime.utcnow()
-    )
-    db.add(transaction)
-    
-    # Clear cart
-    db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()
-    
-    # Log order
-    log = Logs(
-        user_id=user_id,
-        action="order_creation",
-        description=f"Order {db_order.order_id} created for user {user_id} with total amount {total}",
-        created_at=datetime.utcnow()
-    )
-    db.add(log)
-    
-    db.commit()
-    
-    return {
-        "order_id": db_order.order_id,
-        "total_amount": total,
-        "status": db_order.status,
-        "items": [{"product_id": item[0].product_id, "quantity": item[1]} for item in order_items]
-    }
+        db.add(db_order)
+        db.flush()
+
+        # Create order items and update product stock
+        for product, quantity in order_items:
+            order_item = OrderItem(
+                order_id=db_order.order_id,
+                product_id=product.product_id,
+                quantity=quantity,
+                price=product.price
+            )
+            db.add(order_item)
+            
+            # Update product stock
+            product.stock -= quantity
+
+        # Add reward points (5% of total amount before discount)
+        earned_points = int((total + reward_discount) * 0.05)  # 5% of original total
+        if earned_points > 0 and payment_method != 'cod':
+            reward = RewardPoints(
+                transaction_id=db_order.order_id,
+                user_id=current_user.user_id,
+                points=earned_points,
+                status=RewardStatus.earned,
+                created_at=datetime.utcnow()
+            )
+            db.add(reward)
+            
+            # AUTO-CONVERSION: Immediately convert earned points to wallet balance
+            # Calculate reward value (1 point = ₹0.1)
+            reward_value = float(earned_points * 0.1)
+            
+            # Add to account balance
+            account.balance += reward_value
+            
+            # Update reward points status to redeemed
+            reward.status = RewardStatus.redeemed
+            
+            # Create transaction for automatic reward redemption
+            auto_redeem_transaction = Transactions(
+                account_id=account.account_id,
+                amount=reward_value,
+                transaction_type=TransactionType.reward_redemption,
+                status=TransactionStatus.completed,
+                created_at=datetime.utcnow()
+            )
+            db.add(auto_redeem_transaction)
+            
+            # Log automatic redemption
+            auto_redeem_log = Logs(
+                user_id=current_user.user_id,
+                action="auto_reward_redemption",
+                description=f"Automatically redeemed {earned_points} points for ₹{reward_value}",
+                created_at=datetime.utcnow()
+            )
+            db.add(auto_redeem_log)
+
+        # Process reward points redemption if used
+        if use_rewards and reward_points:
+            points_to_redeem = reward_points
+            for reward in available_rewards:
+                if points_to_redeem <= 0:
+                    break
+                
+                if reward.points <= points_to_redeem:
+                    reward.status = RewardStatus.redeemed
+                    points_to_redeem -= reward.points
+                else:
+                    # Split the reward point record
+                    remaining_points = reward.points - points_to_redeem
+                    reward.points = points_to_redeem
+                    reward.status = RewardStatus.redeemed
+                    
+                    new_reward = RewardPoints(
+                        transaction_id=reward.transaction_id,
+                        user_id=reward.user_id,
+                        points=remaining_points,
+                        status=RewardStatus.earned,
+                        created_at=datetime.utcnow()
+                    )
+                    db.add(new_reward)
+                    points_to_redeem = 0
+
+        # Clear cart
+        db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()
+
+        # Log order
+        log = Logs(
+            user_id=current_user.user_id,
+            action="order_creation",
+            description=f"Order {db_order.order_id} created. Total: ₹{total}, Wallet: ₹{wallet_amount}, Rewards: ₹{reward_discount}",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+
+        db.commit()
+
+        # Get order items with product details
+        items = []
+        for item in order_items:
+            product = item[0]
+            quantity = item[1]
+            items.append({
+                "order_item_id": 0,  # Will be set by the database
+                "order_id": db_order.order_id,
+                "product_id": product.product_id,
+                "quantity": quantity,
+                "price_at_time": float(product.price),
+                "created_at": datetime.utcnow(),
+                "name": product.name,
+                "image_url": product.image_url
+            })
+
+        return {
+            "order_id": db_order.order_id,
+            "user_id": current_user.user_id,
+            "account_id": account.account_id,
+            "status": db_order.status,
+            "total_amount": total,
+            "created_at": db_order.created_at,
+            "updated_at": db_order.created_at,
+            "items": items,
+            "reward_points_earned": earned_points if payment_method != 'cod' else 0,
+            "payment_method": payment_method
+        }
+
+    except HTTPException as he:
+        db.rollback()
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/orders/{user_id}", response_model=List[OrderResponse])
 def get_user_orders(user_id: int, db: Session = Depends(get_db)):
     orders = db.query(Order).filter(Order.user_id == user_id).all()
     return orders
+
+@app.get("/api/orders/{order_id}", response_model=OrderResponse)
+async def get_order_details(
+    order_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get order
+        order = db.query(Order).filter(
+            Order.order_id == order_id,
+            Order.user_id == current_user.user_id
+        ).first()
+        
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found"
+            )
+        
+        # Get order items
+        order_items = db.query(OrderItem).filter(OrderItem.order_id == order_id).all()
+        
+        # Get product details for each item
+        items = []
+        for item in order_items:
+            product = db.query(Product).filter(Product.product_id == item.product_id).first()
+            if product:
+                items.append({
+                    "order_item_id": item.order_item_id,
+                    "order_id": item.order_id,
+                    "product_id": item.product_id,
+                    "quantity": item.quantity,
+                    "price_at_time": float(item.price_at_time),
+                    "created_at": item.created_at,
+                    "name": product.name,
+                    "image_url": product.image_url
+                })
+        
+        # Get reward points earned for this order
+        reward_points_earned = 0
+        reward_points_transaction = db.query(RewardPoints).filter(
+            RewardPoints.transaction_id == order_id,
+            RewardPoints.user_id == current_user.user_id
+        ).first()
+        
+        if reward_points_transaction:
+            reward_points_earned = reward_points_transaction.points
+            
+        # Get the automatic redemption transaction
+        auto_redeem_log = db.query(Logs).filter(
+            Logs.user_id == current_user.user_id,
+            Logs.action == "auto_reward_redemption",
+            Logs.description.like(f"Automatically redeemed {reward_points_earned} points%")
+        ).first()
+            
+        return {
+            "order_id": order.order_id,
+            "user_id": order.user_id,
+            "account_id": order.account_id,
+            "status": order.status,
+            "total_amount": float(order.total_amount),
+            "created_at": order.created_at,
+            "updated_at": order.updated_at,
+            "items": items,
+            "reward_points_earned": reward_points_earned,
+            "payment_method": order.payment_method,
+            "wallet_amount": float(order.wallet_amount) if order.wallet_amount else 0.0,
+            "reward_discount": float(order.reward_discount) if order.reward_discount else 0.0
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/orders", response_model=List[OrderResponse])
+async def get_user_orders(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get all orders for the current user
+        orders = db.query(Order).filter(Order.user_id == current_user.user_id).all()
+        
+        # Get order items for each order
+        result = []
+        for order in orders:
+            order_items = db.query(OrderItem).filter(OrderItem.order_id == order.order_id).all()
+            
+            # Get product details for each item
+            items = []
+            for item in order_items:
+                product = db.query(Product).filter(Product.product_id == item.product_id).first()
+                if product:
+                    items.append({
+                        "order_item_id": item.order_item_id,
+                        "order_id": item.order_id,
+                        "product_id": item.product_id,
+                        "quantity": item.quantity,
+                        "price_at_time": float(item.price_at_time),
+                        "created_at": item.created_at,
+                        "name": product.name,
+                        "image_url": product.image_url
+                    })
+            
+            # Get reward points earned for this order
+            # First find the transaction associated with this order
+            transaction = db.query(Transactions).filter(
+                Transactions.account_id == order.account_id,
+                Transactions.transaction_type == TransactionType.purchase,
+                Transactions.created_at.between(
+                    order.created_at - timedelta(seconds=10),
+                    order.created_at + timedelta(seconds=10)
+                )
+            ).first()
+            
+            reward_points_earned = 0
+            if transaction:
+                # Then get reward points using the correct transaction ID
+                reward = db.query(RewardPoints).filter(
+                    RewardPoints.transaction_id == transaction.transaction_id,
+                    RewardPoints.user_id == current_user.user_id,
+                    RewardPoints.status == RewardStatus.earned
+                ).first()
+                
+                reward_points_earned = reward.points if reward else 0
+            
+            result.append({
+                "order_id": order.order_id,
+                "user_id": order.user_id,
+                "account_id": order.account_id,
+                "status": order.status,
+                "total_amount": float(order.total_amount),
+                "created_at": order.created_at,
+                "updated_at": order.updated_at,
+                "items": items,
+                "reward_points_earned": reward_points_earned,
+                "payment_method": order.payment_method
+            })
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Admin Endpoints
 @app.get("/admin/logs")
@@ -1857,6 +2144,11 @@ async def get_user_balance(current_user: Users = Depends(get_current_user), db: 
 
 @app.post("/api/checkout", response_model=OrderResponse)
 async def process_checkout(
+    payment_method: str = Body(None),
+    use_wallet: bool = Body(False),
+    use_rewards: bool = Body(False),
+    reward_points: Optional[int] = Body(None),
+    order_date: Optional[str] = Body(None),
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1872,7 +2164,7 @@ async def process_checkout(
             raise HTTPException(status_code=400, detail="Cart is empty")
         
         # Calculate total and check stock
-        total = 0
+        total = 0.0
         order_items = []
         
         for item in cart_items:
@@ -1881,24 +2173,75 @@ async def process_checkout(
                 raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
             if product.stock < item.quantity:
                 raise HTTPException(status_code=400, detail=f"Not enough stock for product {product.name}")
-            total += item.quantity * product.price
+            # Convert Decimal to float for calculations
+            item_price = float(product.price)
+            item_total = item_price * item.quantity
+            total += item_total
             order_items.append((product, item.quantity))
         
         # Get user's account
         account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
         if not account:
             raise HTTPException(status_code=404, detail="Account not found")
-        if account.balance < total:
-            raise HTTPException(status_code=400, detail="Insufficient balance")
+
+        # Calculate reward discount if using rewards
+        reward_discount = 0.0
+        if use_rewards and reward_points:
+            # Get user's available reward points
+            available_rewards = db.query(RewardPoints).filter(
+                RewardPoints.user_id == current_user.user_id,
+                RewardPoints.status == RewardStatus.earned
+            ).all()
+            
+            total_points = sum(reward.points for reward in available_rewards)
+            if reward_points > total_points:
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Insufficient reward points. Available: {total_points}"
+                )
+            
+            # Calculate reward value (1 point = ₹0.1)
+            reward_discount = float(reward_points) * 0.1
+        
+        # Calculate wallet amount to use
+        wallet_amount = 0.0
+        if use_wallet:
+            if account.balance > 0:
+                # Convert Decimal to float for calculations
+                account_balance = float(account.balance)
+                wallet_amount = min(total, account_balance)
+            else:
+                raise HTTPException(status_code=400, detail="Insufficient wallet balance")
+        
+        # Calculate final amount after discounts
+        final_amount = total - reward_discount - wallet_amount
+        
+        if final_amount < 0:
+            final_amount = 0
+        
+        # Check if account balance is sufficient if using wallet only
+        if payment_method == 'wallet' and final_amount > 0:
+            raise HTTPException(status_code=400, detail="Insufficient wallet balance. Please select another payment method.")
         
         # Create order
+        created_at = datetime.utcnow()
+        if order_date:
+            try:
+                created_at = datetime.fromisoformat(order_date.replace('Z', '+00:00'))
+            except (ValueError, TypeError):
+                # If there's any error parsing the date, use current time
+                pass
+            
         db_order = Order(
             user_id=current_user.user_id,
             account_id=account.account_id,
             total_amount=total,
+            payment_method=payment_method,
+            wallet_amount=wallet_amount,
+            reward_discount=reward_discount,
             status=OrderStatus.pending,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=created_at,
+            updated_at=created_at
         )
         db.add(db_order)
         db.commit()
@@ -1910,25 +2253,70 @@ async def process_checkout(
                 order_id=db_order.order_id,
                 product_id=product.product_id,
                 quantity=quantity,
-                price_at_time=product.price,
-                created_at=datetime.utcnow()
+                price_at_time=float(product.price),
+                created_at=created_at
             )
             db.add(order_item)
             product.stock -= quantity
-            product.updated_at = datetime.utcnow()
+            product.updated_at = created_at
         
-        # Update account balance
-        account.balance -= total
+        # Update account balance if using wallet
+        if wallet_amount > 0:
+            account.balance -= wallet_amount
         
-        # Create transaction
+        # Process reward points redemption if used
+        if use_rewards and reward_points:
+            points_to_redeem = reward_points
+            for reward in available_rewards:
+                if points_to_redeem <= 0:
+                    break
+                
+                if reward.points <= points_to_redeem:
+                    reward.status = RewardStatus.redeemed
+                    points_to_redeem -= reward.points
+                else:
+                    # Split the reward point record
+                    remaining_points = reward.points - points_to_redeem
+                    reward.points = points_to_redeem
+                    reward.status = RewardStatus.redeemed
+                    
+                    new_reward = RewardPoints(
+                        transaction_id=db_order.order_id,
+                        user_id=reward.user_id,
+                        points=remaining_points,
+                        status=RewardStatus.earned,
+                        created_at=created_at
+                    )
+                    db.add(new_reward)
+                    points_to_redeem = 0
+        
+        # Create transaction for the purchase
         transaction = Transactions(
             account_id=account.account_id,
             amount=total,
             transaction_type=TransactionType.purchase,
             status=TransactionStatus.completed,
-            created_at=datetime.utcnow()
+            created_at=created_at
         )
         db.add(transaction)
+        db.flush()  # Flush to get the transaction ID
+        
+        # Add reward points (5% of total amount) AFTER transaction creation
+        earned_points = 0
+        if payment_method != 'cod':
+            earned_points = int(total * 0.05)  # 5% of order total
+            if earned_points > 0:
+                reward = RewardPoints(
+                    transaction_id=transaction.transaction_id,  # Use transaction ID instead of order ID
+                    user_id=current_user.user_id,
+                    points=earned_points,
+                    status=RewardStatus.earned,
+                    created_at=created_at
+                )
+                db.add(reward)
+                
+                # Automatically convert reward points to wallet balance
+                await convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
         
         # Clear cart
         db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()
@@ -1937,20 +2325,254 @@ async def process_checkout(
         log = Logs(
             user_id=current_user.user_id,
             action="order_creation",
-            description=f"Order {db_order.order_id} created for user {current_user.user_id} with total amount {total}",
-            created_at=datetime.utcnow()
+            description=f"Order {db_order.order_id} created. Total: ₹{total}, Wallet: ₹{wallet_amount}, Rewards: ₹{reward_discount}",
+            created_at=created_at
         )
         db.add(log)
         
         db.commit()
         
+        # Get order items with product details
+        items = []
+        for item in order_items:
+            product = item[0]
+            quantity = item[1]
+            items.append({
+                "order_item_id": 0,  # Will be set by the database
+                "order_id": db_order.order_id,
+                "product_id": product.product_id,
+                "quantity": quantity,
+                "price_at_time": float(product.price),
+                "created_at": created_at,
+                "name": product.name,
+                "image_url": product.image_url
+            })
+        
         return {
             "order_id": db_order.order_id,
-            "total_amount": total,
+            "user_id": current_user.user_id,
+            "account_id": account.account_id,
             "status": db_order.status,
-            "items": [{"product_id": item[0].product_id, "quantity": item[1]} for item in order_items]
+            "total_amount": float(total),
+            "payment_method": payment_method,
+            "wallet_amount": float(wallet_amount),
+            "reward_discount": float(reward_discount),
+            "created_at": created_at,
+            "updated_at": created_at,
+            "items": items,
+            "reward_points_earned": earned_points
+        }
+    except HTTPException as he:
+        db.rollback()
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/account/add-funds", response_model=dict)
+async def add_funds(
+    amount: float = Body(...),
+    payment_method: str = Body(...),
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+
+        # Create transaction
+        transaction = Transactions(
+            account_id=account.account_id,
+            amount=amount,
+            transaction_type=TransactionType.top_up,
+            status=TransactionStatus.completed,
+            created_at=datetime.utcnow()
+        )
+        db.add(transaction)
+
+        # Update account balance
+        account.balance += amount
+
+        # Log transaction
+        log = Logs(
+            user_id=current_user.user_id,
+            action="wallet_top_up",
+            description=f"Added ₹{amount} to wallet via {payment_method}",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+
+        db.commit()
+        db.refresh(account)
+
+        return {
+            "message": "Funds added successfully",
+            "new_balance": float(account.balance)
         }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/account/rewards", response_model=dict)
+async def get_rewards(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's reward points
+        rewards = db.query(RewardPoints).filter(
+            RewardPoints.user_id == current_user.user_id,
+            RewardPoints.status == RewardStatus.earned
+        ).all()
+
+        total_points = sum(reward.points for reward in rewards)
+        
+        return {
+            "total_points": total_points,
+            "points_value": float(total_points * 0.1),  # 1 point = ₹0.1
+            "rewards": [
+                {
+                    "reward_id": reward.reward_id,
+                    "points": reward.points,
+                    "created_at": reward.created_at
+                }
+                for reward in rewards
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/account/redeem-rewards/{points}", response_model=dict)
+async def redeem_rewards_path(
+    points: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get user's reward points
+        available_rewards = db.query(RewardPoints).filter(
+            RewardPoints.user_id == current_user.user_id,
+            RewardPoints.status == RewardStatus.earned
+        ).all()
+
+        total_points = sum(reward.points for reward in available_rewards)
+
+        if points > total_points:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient reward points. Available: {total_points}"
+            )
+
+        # Calculate reward value (1 point = ₹0.1)
+        # Convert to Decimal to match the account.balance type
+        reward_value = Decimal(str(points * 0.1))
+
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="Account not found")
+
+        # Update account balance
+        account.balance += reward_value
+
+        # Update reward points status
+        points_to_redeem = points
+        for reward in available_rewards:
+            if points_to_redeem <= 0:
+                break
+            
+            if reward.points <= points_to_redeem:
+                reward.status = RewardStatus.redeemed
+                points_to_redeem -= reward.points
+            else:
+                # Split the reward point record
+                remaining_points = reward.points - points_to_redeem
+                reward.points = points_to_redeem
+                reward.status = RewardStatus.redeemed
+                
+                new_reward = RewardPoints(
+                    transaction_id=reward.transaction_id,
+                    user_id=reward.user_id,
+                    points=remaining_points,
+                    status=RewardStatus.earned,
+                    created_at=datetime.utcnow()
+                )
+                db.add(new_reward)
+                points_to_redeem = 0
+
+        # Create transaction for reward redemption
+        transaction = Transactions(
+            account_id=account.account_id,
+            amount=float(reward_value),  # Convert Decimal to float for storage
+            transaction_type=TransactionType.reward_redemption,
+            status=TransactionStatus.completed,
+            created_at=datetime.utcnow()
+        )
+        db.add(transaction)
+
+        # Log transaction
+        log = Logs(
+            user_id=current_user.user_id,
+            action="reward_redemption",
+            description=f"Redeemed {points} points for ₹{float(reward_value)}",
+            created_at=datetime.utcnow()
+        )
+        db.add(log)
+
+        db.commit()
+
+        return {
+            "message": f"Successfully redeemed {points} points for ₹{float(reward_value)}",
+            "new_balance": float(account.balance),
+            "remaining_points": total_points - points
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Add this after the create_order function or in a suitable location
+async def convert_reward_points_to_wallet(user_id: int, earned_points: int, db: Session) -> float:
+    """
+    Automatically converts reward points to wallet balance
+    Returns the amount added to the wallet
+    """
+    if earned_points <= 0:
+        return 0.0
+        
+    # Calculate reward value (1 point = ₹0.1)
+    # Convert to Decimal to match the account.balance type
+    reward_value = Decimal(str(earned_points * 0.1))
+    
+    # Get user's account
+    account = db.query(Account).filter(Account.user_id == user_id).first()
+    if not account:
+        return 0.0
+    
+    # Update account balance
+    account.balance += reward_value
+    
+    # Update reward status to redeemed
+    reward = db.query(RewardPoints).filter(
+        RewardPoints.user_id == user_id,
+        RewardPoints.points == earned_points,
+        RewardPoints.status == RewardStatus.earned
+    ).order_by(RewardPoints.created_at.desc()).first()
+    
+    if reward:
+        reward.status = RewardStatus.redeemed
+    
+    # Log transaction
+    log = Logs(
+        user_id=user_id,
+        action="reward_conversion",
+        description=f"Converted {earned_points} reward points to ₹{float(reward_value)} in wallet",
+        created_at=datetime.utcnow()
+    )
+    db.add(log)
+    
+    return float(reward_value)
 

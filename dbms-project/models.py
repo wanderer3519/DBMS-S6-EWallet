@@ -165,6 +165,9 @@ class Order(Base):
     account_id = Column(Integer, ForeignKey("account.account_id"))
     total_amount = Column(DECIMAL(10, 2))
     status = Column(Enum(OrderStatus), default=OrderStatus.pending)
+    payment_method = Column(String(50), nullable=True)
+    wallet_amount = Column(DECIMAL(10, 2), default=0)
+    reward_discount = Column(DECIMAL(10, 2), default=0)
     created_at = Column(TIMESTAMP)
     updated_at = Column(TIMESTAMP)
 

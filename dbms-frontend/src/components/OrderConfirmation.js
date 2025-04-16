@@ -154,27 +154,23 @@ const OrderConfirmation = () => {
                         <div className="reward-points">
                             <h3>🎁 Reward Points</h3>
                             <p className="reward-conversion">
-                                You've earned {orderDetails.reward_points_earned} reward points, which equals <strong>₹{rewardPointsValue}</strong> in value!
+                                You've earned {orderDetails.reward_points_earned} reward points, which equals <strong>₹{rewardPointsValue}</strong> and has been added to your E-Wallet!
                             </p>
                             
-                            {/* Display reward update status */}
+                            {/* Display wallet update status */}
                             <div className={`wallet-update-status ${walletUpdated ? 'completed' : 'pending'}`}>
                                 <p>
-                                    <span className="status-icon">✅</span>
+                                    <span className="status-icon">{walletUpdated ? '✅' : '⏳'}</span>
                                     <span className="status-text">
-                                        {orderDetails.reward_points_earned} points have been added to your reward balance!
+                                        {walletUpdated 
+                                            ? `₹${rewardPointsValue} has been added to your E-Wallet!` 
+                                            : `₹${rewardPointsValue} will be added to your E-Wallet shortly.`}
                                     </span>
                                 </p>
                             </div>
                             <p className="points-usage-info">
-                                Visit your wallet to convert these points to wallet balance at any time!
+                                Your reward points are automatically converted to wallet balance after each order!
                             </p>
-                            <button 
-                                className="go-to-wallet-button"
-                                onClick={() => navigate('/wallet')}
-                            >
-                                Go to Wallet
-                            </button>
                         </div>
                     )}
                     
@@ -211,7 +207,9 @@ const OrderConfirmation = () => {
                     </ul>
                     {orderDetails.reward_points_earned > 0 && displayPaymentMethod.toLowerCase() !== 'cod' && (
                         <p className="reward-update">
-                            Your reward points are ready to be converted! Visit your wallet to convert them to wallet balance. 🎉
+                            {walletUpdated 
+                                ? "Your reward points have been automatically converted to wallet balance! Your dashboard shows the updated balance. 🎉" 
+                                : "Your reward points will be automatically converted to wallet balance! Check your dashboard for the updated wallet balance. 🎉"}
                         </p>
                     )}
                 </div>

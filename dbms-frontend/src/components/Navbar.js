@@ -1,8 +1,7 @@
 import React from 'react';
+import { Navbar as BootstrapNavbar, Nav, Container, Button, Dropdown } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
-import { Navbar as BootstrapNavbar, Nav, Container, NavDropdown } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
-import './Navbar.css';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -16,35 +15,47 @@ const Navbar = () => {
   return (
     <BootstrapNavbar bg="dark" variant="dark" expand="lg">
       <Container>
-        <BootstrapNavbar.Brand as={Link} to="/">E-Wallet Shop</BootstrapNavbar.Brand>
+        <BootstrapNavbar.Brand as={Link} to="/">E-Wallet</BootstrapNavbar.Brand>
         <BootstrapNavbar.Toggle aria-controls="basic-navbar-nav" />
         <BootstrapNavbar.Collapse id="basic-navbar-nav">
-          <Nav className="mr-auto">
-            <Nav.Link as={Link} to="/dashboard">Home</Nav.Link>
-            <Nav.Link as={Link} to="/products">Products</Nav.Link>
+          <Nav className="me-auto">
+            <Nav.Link as={Link} to="/">Products</Nav.Link>
+            {user && user.role === 'user' && (
+              <Nav.Link as={Link} to="/cart">Cart</Nav.Link>
+            )}
+            {user && user.role === 'merchant' && (
+              <Nav.Link as={Link} to="/merchant">Merchant Dashboard</Nav.Link>
+            )}
+            {user && user.role === 'admin' && (
+              <Nav.Link as={Link} to="/admin">Admin Dashboard</Nav.Link>
+            )}
           </Nav>
-          <Nav className="ms-auto">
+          <Nav>
             {user ? (
               <>
-                <Nav.Link as={Link} to="/cart">Cart</Nav.Link>
-                <Nav.Link as={Link} to="/wallet">Wallet</Nav.Link>
-                <NavDropdown title={user.name || 'Account'} id="basic-nav-dropdown">
-                  <NavDropdown.Item as={Link} to="/profile">Profile</NavDropdown.Item>
-                  <NavDropdown.Item as={Link} to="/orders">My Orders</NavDropdown.Item>
-                  {user.role === 'merchant' && (
-                    <NavDropdown.Item as={Link} to="/merchant/dashboard">Merchant Dashboard</NavDropdown.Item>
-                  )}
-                  {user.role === 'admin' && (
-                    <NavDropdown.Item as={Link} to="/admin">Admin Dashboard</NavDropdown.Item>
-                  )}
-                  <NavDropdown.Divider />
-                  <NavDropdown.Item onClick={handleLogout}>Logout</NavDropdown.Item>
-                </NavDropdown>
+                <Nav.Link disabled>Welcome, {user.name}</Nav.Link>
+                <Button variant="outline-light" onClick={handleLogout}>Logout</Button>
               </>
             ) : (
               <>
-                <Nav.Link as={Link} to="/login">Login</Nav.Link>
-                <Nav.Link as={Link} to="/signup">Sign Up</Nav.Link>
+                <Dropdown as={Nav.Item}>
+                  <Dropdown.Toggle as={Nav.Link} id="user-dropdown">
+                    User
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item as={Link} to="/login">Login</Dropdown.Item>
+                    <Dropdown.Item as={Link} to="/signup">Signup</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
+                <Dropdown as={Nav.Item}>
+                  <Dropdown.Toggle as={Nav.Link} id="merchant-dropdown">
+                    Merchant
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item as={Link} to="/merchant/login">Login</Dropdown.Item>
+                    <Dropdown.Item as={Link} to="/merchant/signup">Signup</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               </>
             )}
           </Nav>
