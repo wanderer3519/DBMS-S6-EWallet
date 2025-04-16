@@ -39,6 +39,11 @@ const MerchantDashboard = () => {
     stock: '',
     description: ''
   });
+  const [dashboardSummary, setDashboardSummary] = useState({
+    totalProducts: 0,
+    totalCategories: 0,
+    outOfStock: 0
+  });
   const navigate = useNavigate();
 
   const styles = {
@@ -103,6 +108,20 @@ const MerchantDashboard = () => {
 
     fetchAllProductDetails();
   }, [products]);
+
+  useEffect(() => {
+    // Calculate dashboard summary when products change
+    if (allProducts.length > 0) {
+      const uniqueCategories = [...new Set(allProducts.map(p => p.business_category || 'Uncategorized'))];
+      const outOfStock = allProducts.filter(p => p.stock === 0).length;
+      
+      setDashboardSummary({
+        totalProducts: allProducts.length,
+        totalCategories: uniqueCategories.length,
+        outOfStock: outOfStock
+      });
+    }
+  }, [allProducts]);
 
   const fetchMerchantProfile = async () => {
     try {
@@ -327,17 +346,82 @@ const MerchantDashboard = () => {
   };
 
   const handleUpdateClick = (product) => {
+    // Get the most up-to-date product details if available
+    const currentProduct = productDetails[product.product_id] || product;
+    
     setSelectedProduct(product);
     setUpdateProduct({
-      product_id: product.product_id,
-      product_name: product.name,
-      business_category: product.business_category,
-      price: product.price,
-      mrp: product.mrp,
-      stock: product.stock,
-      description: product.description
+      product_name: currentProduct.name || '',
+      business_category: currentProduct.business_category || '',
+      price: currentProduct.price ? currentProduct.price.toString() : '',
+      mrp: currentProduct.mrp ? currentProduct.mrp.toString() : '',
+      stock: currentProduct.stock ? currentProduct.stock.toString() : '',
+      description: currentProduct.description || ''
     });
+    
+    // Scroll to the update form
+    setTimeout(() => {
+      const updateForm = document.querySelector('.update-product-form');
+      if (updateForm) {
+        updateForm.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+    
     setShowUpdateForm(true);
+  };
+
+  // Simplify the refresh function to just fetch all products
+  const refreshAllProducts = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      if (!token || !user) {
+        navigate('/merchant/login');
+        return;
+      }
+      
+      setLoading(true); // Show loading state while fetching
+      
+      const res = await axios.get(`http://localhost:8000/api/merchant/products`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+      });
+
+      // Process products and ensure all required fields
+      const processedProducts = res.data.map(product => ({
+        ...product,
+        created_at: product.created_at || new Date().toISOString(),
+        updated_at: product.updated_at || product.created_at || new Date().toISOString(),
+        business_category: product.business_category || 'Uncategorized'
+      }));
+
+      const sortedProducts = processedProducts.sort((a, b) => 
+        new Date(b.updated_at) - new Date(a.updated_at)
+      );
+      
+      setAllProducts(sortedProducts);
+      setProducts(sortedProducts);
+      
+      // Extract and sort categories
+      const uniqueCategories = [...new Set(sortedProducts.map(product => 
+        product.business_category || 'Uncategorized'
+      ))].sort();
+      
+      setCategories(uniqueCategories);
+      
+      // Clear the product details cache to force fresh data
+      setProductDetails({});
+      
+      console.log('All products refreshed successfully');
+      setLoading(false);
+    } catch (err) {
+      console.error('Error refreshing products:', err);
+      setError('Failed to refresh products. ' + (err.response?.data?.detail || err.message));
+      setLoading(false);
+    }
   };
 
   const handleUpdateSubmit = async (e) => {
@@ -350,46 +434,48 @@ const MerchantDashboard = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const formData = new FormData();
       
-      // Add all form fields to the FormData object
-      formData.append('name', updateProduct.product_name);
-      formData.append('business_category', updateProduct.business_category);
-      formData.append('price', updateProduct.price);
-      formData.append('mrp', updateProduct.mrp);
-      formData.append('stock', updateProduct.stock);
-      formData.append('description', updateProduct.description);
+      // Check if all required fields are provided
+      if (!updateProduct.product_name || !updateProduct.price || !updateProduct.mrp || !updateProduct.stock) {
+        alert("Please fill in all required fields (Name, Price, MRP, and Stock)");
+        return;
+      }
+      
+      // Validate price and MRP
+      if (parseFloat(updateProduct.price) > parseFloat(updateProduct.mrp)) {
+        alert("Price cannot be greater than MRP");
+        return;
+      }
+      
+      // Create a JSON object for the update
+      const updateData = {
+        name: updateProduct.product_name,
+        business_category: updateProduct.business_category,
+        price: parseFloat(updateProduct.price),
+        mrp: parseFloat(updateProduct.mrp),
+        stock: parseInt(updateProduct.stock),
+        description: updateProduct.description
+      };
+      
+      console.log('Updating product with data:', updateData);
+      
+      setLoading(true); // Show loading state during update
       
       const response = await axios.put(
         `http://localhost:8000/api/merchant/products/${selectedProduct.product_id}`,
-        formData,
+        updateData,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
+            'Content-Type': 'application/json'
           }
         }
       );
       
-      if (response.status === 200) {
-        // Update the product in the local state
-        setProducts(prevProducts => 
-          prevProducts.map(product => 
-            product.product_id === selectedProduct.product_id 
-              ? { 
-                  ...product, 
-                  name: updateProduct.product_name,
-                  business_category: updateProduct.business_category,
-                  price: updateProduct.price,
-                  mrp: updateProduct.mrp,
-                  stock: updateProduct.stock,
-                  description: updateProduct.description,
-                  updated_at: new Date().toISOString() 
-                } 
-              : product
-          )
-        );
+      if (response.status === 200 || response.status === 201) {
+        console.log('Product updated successfully:', response.data);
         
+        // Reset form state
         setShowUpdateForm(false);
         setSelectedProduct(null);
         setUpdateProduct({
@@ -400,12 +486,23 @@ const MerchantDashboard = () => {
           stock: '',
           description: ''
         });
+        
+        // Show success message
+        setSuccessMessage('Product updated successfully! Refreshing product list...');
+        
+        // Simply refresh all products after update
+        await refreshAllProducts();
+        
+        // Update the success message
         setSuccessMessage('Product updated successfully!');
         setTimeout(() => setSuccessMessage(''), 5000);
       }
     } catch (error) {
       console.error('Error updating product:', error);
-      alert('Failed to update product. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Failed to update product. Please try again.';
+      setError(errorMessage);
+      setTimeout(() => setError(null), 5000);
+      setLoading(false);
     }
   };
 
@@ -519,28 +616,73 @@ const MerchantDashboard = () => {
     setProducts(filteredProducts);
   };
 
+  const toggleUpdateForm = () => {
+    if (showUpdateForm) {
+      // If we're closing the form, reset the selectedProduct
+      setShowUpdateForm(false);
+      setSelectedProduct(null);
+    } else {
+      setShowUpdateForm(true);
+    }
+  };
+
   if (loading) return <div className="loading">Loading...</div>;
   if (error) return <div className="error">{error}</div>;
 
   return (
     <div className="merchant-dashboard">
       <div className="dashboard-header">
-        <h2>Merchant Dashboard</h2>
+        <h2><i className="fas fa-store"></i> Merchant Dashboard</h2>
         <div className="header-actions">
           <button className="btn btn-outline" onClick={() => navigate('/merchant/profile')}>
             <i className="fas fa-user"></i> Profile
           </button>
           <button className="btn btn-outline" onClick={handleLogsClick}>
-            <i className="fas fa-history"></i> View Logs
+            <i className="fas fa-history"></i> Activity Logs
           </button>
         </div>
       </div>
 
-      {successMessage && <div className="success-message">{successMessage}</div>}
+      {successMessage && (
+        <div className="success-message">
+          {successMessage}
+        </div>
+      )}
+      
+      {/* Dashboard summary metrics */}
+      <div className="dashboard-metrics">
+        <div className="metric-card">
+          <div className="metric-icon">
+            <i className="fas fa-box"></i>
+          </div>
+          <div className="metric-content">
+            <h3>{dashboardSummary.totalProducts}</h3>
+            <span>Total Products</span>
+          </div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-icon">
+            <i className="fas fa-tags"></i>
+          </div>
+          <div className="metric-content">
+            <h3>{dashboardSummary.totalCategories}</h3>
+            <span>Categories</span>
+          </div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-icon stock-warning">
+            <i className="fas fa-exclamation-triangle"></i>
+          </div>
+          <div className="metric-content">
+            <h3>{dashboardSummary.outOfStock}</h3>
+            <span>Out of Stock</span>
+          </div>
+        </div>
+      </div>
 
       {showProfile && merchantProfile && (
         <div className="merchant-profile">
-          <h3>Merchant Profile</h3>
+          <h3><i className="fas fa-user-circle"></i> Merchant Profile</h3>
           <div className="profile-content">
             <div className="profile-info">
               <p><strong>Business Name:</strong> {merchantProfile.business_name}</p>
@@ -551,7 +693,7 @@ const MerchantDashboard = () => {
               <p><strong>Last Updated:</strong> {formatDate(merchantProfile.updated_at)}</p>
             </div>
             <button className="btn btn-primary" onClick={() => navigate('/merchant/profile/edit')}>
-              Edit Profile
+              <i className="fas fa-edit"></i> Edit Profile
             </button>
           </div>
         </div>
@@ -559,7 +701,7 @@ const MerchantDashboard = () => {
 
       {showLogs && (
         <div className="merchant-logs">
-          <h3>Activity Timeline</h3>
+          <h3><i className="fas fa-history"></i> Activity Timeline</h3>
           <div className="timeline">
             {logs.length === 0 ? (
               <p className="no-logs">No activity logs found.</p>
@@ -593,7 +735,7 @@ const MerchantDashboard = () => {
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
             <button onClick={handleSearch} className="search-btn">
-              <i className="fas fa-search"></i> Search
+              Search
             </button>
             <button onClick={handleResetSearch} className="reset-btn">
               Reset
@@ -604,7 +746,7 @@ const MerchantDashboard = () => {
             <button className="add-product-btn" onClick={toggleAddProductForm}>
               <i className="fas fa-plus"></i> {showAddProductForm ? 'Cancel' : 'Add New Product'}
             </button>
-            <button className="update-product-btn" onClick={() => setShowUpdateForm(!showUpdateForm)}>
+            <button className="update-product-btn" onClick={toggleUpdateForm}>
               <i className="fas fa-edit"></i> {showUpdateForm ? 'Cancel' : 'Update a Product'}
             </button>
           </div>
@@ -631,38 +773,37 @@ const MerchantDashboard = () => {
 
       {showAddProductForm && (
         <div className="add-product-form">
-          <h3>Add New Product</h3>
+          <h3><i className="fas fa-plus-circle"></i> Add New Product</h3>
           <form onSubmit={handleSubmit}>
-
             <div className="form-group">
-              <label>Product Name:</label>
+              <label>Product Name</label>
               <input name="name" value={newProduct.name} onChange={handleInputChange} required />
             </div>
 
             <div className="form-group">
-              <label>Description:</label>
+              <label>Description</label>
               <textarea name="description" value={newProduct.description} onChange={handleInputChange} required />
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Price (₹):</label>
+                <label>Price (₹)</label>
                 <input type="number" name="price" value={newProduct.price} onChange={handleInputChange} required />
               </div>
 
               <div className="form-group">
-                <label>MRP (₹):</label>
+                <label>MRP (₹)</label>
                 <input type="number" name="mrp" value={newProduct.mrp} onChange={handleInputChange} required />
               </div>
 
               <div className="form-group">
-                <label>Stock:</label>
+                <label>Stock</label>
                 <input type="number" name="stock" value={newProduct.stock} onChange={handleInputChange} required />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Business Category:</label>
+              <label>Business Category</label>
               <input 
                 type="text" 
                 name="business_category" 
@@ -674,7 +815,7 @@ const MerchantDashboard = () => {
             </div>
 
             <div className="form-group">
-              <label>Product Image:</label>
+              <label>Product Image</label>
               <input type="file" accept="image/*" onChange={handleImageChange} required />
             </div>
 
@@ -693,90 +834,98 @@ const MerchantDashboard = () => {
 
       {showUpdateForm && (
         <div className="update-product-form" style={styles.updateProductForm}>
-          <h3>Update Product</h3>
-          <p className="selected-product-info" style={styles.selectedProductInfo}>
-            Updating product: <strong>{selectedProduct.name}</strong> (ID: {selectedProduct.product_id})
-          </p>
-          <form onSubmit={handleUpdateSubmit}>
-            <div className="form-group">
-              <label>Product Name:</label>
-              <input
-                type="text"
-                name="product_name"
-                value={updateProduct.product_name}
-                onChange={(e) => setUpdateProduct({...updateProduct, product_name: e.target.value})}
-                placeholder="Enter product name"
-              />
-              <small className="form-text" style={styles.formText}>Current value: {selectedProduct.name}</small>
+          <h3><i className="fas fa-edit"></i> Update Product</h3>
+          {selectedProduct ? (
+            <>
+              <p className="selected-product-info" style={styles.selectedProductInfo}>
+                <i className="fas fa-tag"></i> Updating product: <strong>{selectedProduct.name}</strong> (ID: {selectedProduct.product_id})
+              </p>
+              <form onSubmit={handleUpdateSubmit}>
+                <div className="form-group">
+                  <label>Product Name</label>
+                  <input
+                    type="text"
+                    name="product_name"
+                    value={updateProduct.product_name}
+                    onChange={(e) => setUpdateProduct({...updateProduct, product_name: e.target.value})}
+                    placeholder="Enter product name"
+                  />
+                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.name}</small>
+                </div>
+                <div className="form-group">
+                  <label>Business Category</label>
+                  <input
+                    type="text"
+                    name="business_category"
+                    value={updateProduct.business_category}
+                    onChange={(e) => setUpdateProduct({...updateProduct, business_category: e.target.value})}
+                    placeholder="Enter business category"
+                  />
+                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.business_category}</small>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Price (₹)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={updateProduct.price}
+                      onChange={(e) => setUpdateProduct({...updateProduct, price: e.target.value})}
+                      placeholder="Enter price"
+                    />
+                    <small className="form-text" style={styles.formText}>Current value: {selectedProduct.price}</small>
+                  </div>
+                  <div className="form-group">
+                    <label>MRP (₹)</label>
+                    <input
+                      type="number"
+                      name="mrp"
+                      value={updateProduct.mrp}
+                      onChange={(e) => setUpdateProduct({...updateProduct, mrp: e.target.value})}
+                      placeholder="Enter MRP"
+                    />
+                    <small className="form-text" style={styles.formText}>Current value: {selectedProduct.mrp}</small>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Stock</label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={updateProduct.stock}
+                    onChange={(e) => setUpdateProduct({...updateProduct, stock: e.target.value})}
+                    placeholder="Enter stock"
+                  />
+                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.stock}</small>
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    name="description"
+                    value={updateProduct.description}
+                    onChange={(e) => setUpdateProduct({...updateProduct, description: e.target.value})}
+                    placeholder="Enter description"
+                  />
+                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.description}</small>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="btn btn-primary">Update Product</button>
+                  <button type="button" className="btn btn-secondary" onClick={toggleUpdateForm}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <div className="product-selection-prompt">
+              <p><i className="fas fa-arrow-down"></i> Please select a product from the list below to update.</p>
             </div>
-            <div className="form-group">
-              <label>Business Category:</label>
-              <input
-                type="text"
-                name="business_category"
-                value={updateProduct.business_category}
-                onChange={(e) => setUpdateProduct({...updateProduct, business_category: e.target.value})}
-                placeholder="Enter business category"
-              />
-              <small className="form-text" style={styles.formText}>Current value: {selectedProduct.business_category}</small>
-            </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Price:</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={updateProduct.price}
-                  onChange={(e) => setUpdateProduct({...updateProduct, price: e.target.value})}
-                  placeholder="Enter price"
-                />
-                <small className="form-text" style={styles.formText}>Current value: {selectedProduct.price}</small>
-              </div>
-              <div className="form-group">
-                <label>MRP:</label>
-                <input
-                  type="number"
-                  name="mrp"
-                  value={updateProduct.mrp}
-                  onChange={(e) => setUpdateProduct({...updateProduct, mrp: e.target.value})}
-                  placeholder="Enter MRP"
-                />
-                <small className="form-text" style={styles.formText}>Current value: {selectedProduct.mrp}</small>
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Stock:</label>
-              <input
-                type="number"
-                name="stock"
-                value={updateProduct.stock}
-                onChange={(e) => setUpdateProduct({...updateProduct, stock: e.target.value})}
-                placeholder="Enter stock"
-              />
-              <small className="form-text" style={styles.formText}>Current value: {selectedProduct.stock}</small>
-            </div>
-            <div className="form-group">
-              <label>Description:</label>
-              <textarea
-                name="description"
-                value={updateProduct.description}
-                onChange={(e) => setUpdateProduct({...updateProduct, description: e.target.value})}
-                placeholder="Enter description"
-              />
-              <small className="form-text" style={styles.formText}>Current value: {selectedProduct.description}</small>
-            </div>
-            <div className="form-actions" style={styles.formActions}>
-              <button type="submit" className="btn btn-primary">Update Product</button>
-              <button type="button" className="btn btn-secondary" onClick={() => setShowUpdateForm(false)}>
-                Cancel
-              </button>
-            </div>
-          </form>
+          )}
         </div>
       )}
 
       <div className="products-section">
-        <h3>My Products</h3>
+        <h3><i className="fas fa-boxes"></i> My Products</h3>
         {products.length === 0 ? (
           <div className="no-products">
             <i className="fas fa-box-open"></i>
@@ -784,52 +933,66 @@ const MerchantDashboard = () => {
           </div>
         ) : (
           <div className="products-grid">
-            {products.map(product => (
-              <div key={product.product_id} className="product-card">
-                <div 
-                  className="product-image"
-                  onClick={() => navigate(`/product/${product.product_id}`)}
-                >
-                  {product.image_url ? (
-                    <img 
-                      src={`http://localhost:8000${product.image_url}`}
-                      alt={product.name}
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = '/placeholder.png';
-                      }}
-                    />
-                  ) : (
-                    <div className="placeholder-image">
-                      <i className="fas fa-image"></i>
-                      <span>No Image</span>
+            {products.map(product => {
+              // Use product details from cache if available, otherwise use the product from the list
+              const productToDisplay = productDetails[product.product_id] ? 
+                {...product, ...productDetails[product.product_id]} : 
+                product;
+                
+              return (
+                <div key={productToDisplay.product_id} className="product-card">
+                  <div 
+                    className="product-image"
+                    onClick={() => navigate(`/product/${productToDisplay.product_id}`)}
+                  >
+                    {productToDisplay.image_url ? (
+                      <img 
+                        src={`http://localhost:8000${productToDisplay.image_url}`}
+                        alt={productToDisplay.name}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/placeholder.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="placeholder-image">
+                        <i className="fas fa-image"></i>
+                        <span>No Image</span>
+                      </div>
+                    )}
+                    <div className="product-overlay">
+                      <span className="category-tag">{productToDisplay.business_category || 'Uncategorized'}</span>
+                      <span className="discount-tag">{calculateDiscount(productToDisplay.mrp, productToDisplay.price)}% OFF</span>
                     </div>
-                  )}
-                  <div className="product-overlay">
-                    <span className="category-tag">{product.business_category || 'Uncategorized'}</span>
-                    <span className="discount-tag">{calculateDiscount(product.mrp, product.price)}% OFF</span>
+                  </div>
+                  <div className="product-info">
+                    <h4>{productToDisplay.name}</h4>
+                    <div className="product-details">
+                      <div className="price-info">
+                        <span className="price">₹{productToDisplay.price}</span>
+                        <span className="mrp">MRP: ₹{productToDisplay.mrp}</span>
+                      </div>
+                      <div className="stock-info">
+                        <span className={`stock-badge ${productToDisplay.stock === 0 ? 'out-of-stock' : productToDisplay.stock < 10 ? 'low-stock' : 'in-stock'}`}>
+                          {productToDisplay.stock === 0 ? 'Out of Stock' : productToDisplay.stock < 10 ? 'Low Stock' : 'In Stock'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="product-actions">
+                      <button 
+                        className="btn btn-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateClick(productToDisplay);
+                        }}
+                      >
+                        <i className="fas fa-edit"></i> Update
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="product-info">
-                  <h4>{product.name}</h4>
-                  <div className="price-info">
-                    <span className="price">₹{product.price}</span>
-                    <span className="mrp">MRP: ₹{product.mrp}</span>
-                  </div>
-                  <div className="product-actions">
-                    <button 
-                      className="btn btn-primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUpdateClick(product);
-                      }}
-                    >
-                      Update
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
