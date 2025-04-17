@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './Dashboard.css';
+import '../styles/Dashboard.css';
 // ... [imports remain unchanged]
 // ... [imports remain unchanged]
 

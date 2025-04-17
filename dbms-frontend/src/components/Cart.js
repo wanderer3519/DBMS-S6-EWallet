@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './Cart.css';
+import '../styles/Cart.css';
 
 export const calculateTotal = (items) => {
     return items.reduce((acc, item) => acc + (item.price * item.quantity), 0);

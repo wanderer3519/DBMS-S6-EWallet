@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Card, Form, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import './Profile.css';
+import '../styles/Profile.css';
 
 const Profile = () => {
     const { user, isAuthenticated, navigate } = useAuth();

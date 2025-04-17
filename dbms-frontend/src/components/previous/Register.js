@@ -1,7 +1,7 @@
 import React from 'react'
 import { useState } from 'react';
 import { Outlet, Link, useNavigate } from "react-router-dom";
-import { registerUser } from '../api/auth';
+import { registerUser } from '../../api/auth';
 
 const Register = () => {
   const [formData, setFormData] = useState({

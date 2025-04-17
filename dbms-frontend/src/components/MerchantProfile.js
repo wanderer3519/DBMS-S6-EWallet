@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import './MerchantProfile.css';
+import '../styles/MerchantProfile.css';
 
 const MerchantProfile = () => {
   const [merchantData, setMerchantData] = useState(null);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import './AddFunds.css';
+import '../styles/AddFunds.css';
 
 const AddFunds = () => {
     const [amount, setAmount] = useState('');
