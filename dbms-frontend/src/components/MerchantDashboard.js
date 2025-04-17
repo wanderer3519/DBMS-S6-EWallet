@@ -46,35 +46,6 @@ const MerchantDashboard = () => {
   });
   const navigate = useNavigate();
 
-  const styles = {
-    updateProductForm: {
-      marginTop: '20px',
-      padding: '20px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '8px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    },
-    selectedProductInfo: {
-      marginBottom: '15px',
-      padding: '10px',
-      backgroundColor: '#e9ecef',
-      borderRadius: '4px',
-      fontSize: '14px',
-    },
-    formText: {
-      display: 'block',
-      marginTop: '5px',
-      fontSize: '12px',
-      color: '#6c757d',
-    },
-    formActions: {
-      display: 'flex',
-      justifyContent: 'flex-end',
-      gap: '10px',
-      marginTop: '20px',
-    },
-  };
-
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('token');
@@ -644,7 +615,7 @@ const MerchantDashboard = () => {
         <h2><i className="fas fa-store"></i> Merchant Dashboard</h2>
         <div className="header-actions">
           <button className="btn btn-outline" onClick={() => navigate('/merchant/profile')}>
-            <i className="fas fa-user"></i> Profile
+            <i className="fas fa-user-circle"></i> Profile
           </button>
           <button className="btn btn-outline" onClick={handleLogsClick}>
             <i className="fas fa-history"></i> Activity Logs
@@ -662,7 +633,7 @@ const MerchantDashboard = () => {
       <div className="dashboard-metrics">
         <div className="metric-card">
           <div className="metric-icon">
-            <i className="fas fa-box"></i>
+            <i className="fas fa-cubes"></i>
           </div>
           <div className="metric-content">
             <h3>{dashboardSummary.totalProducts}</h3>
@@ -671,7 +642,7 @@ const MerchantDashboard = () => {
         </div>
         <div className="metric-card">
           <div className="metric-icon">
-            <i className="fas fa-tags"></i>
+            <i className="fas fa-tag"></i>
           </div>
           <div className="metric-content">
             <h3>{dashboardSummary.totalCategories}</h3>
@@ -694,12 +665,12 @@ const MerchantDashboard = () => {
           <h3><i className="fas fa-user-circle"></i> Merchant Profile</h3>
           <div className="profile-content">
             <div className="profile-info">
-              <p><strong>Business Name:</strong> {merchantProfile.business_name}</p>
-              <p><strong>Business Category:</strong> {merchantProfile.business_category}</p>
-              <p><strong>Contact:</strong> {merchantProfile.contact}</p>
-              <p><strong>Email:</strong> {merchantProfile.email}</p>
-              <p><strong>Created At:</strong> {formatDate(merchantProfile.created_at)}</p>
-              <p><strong>Last Updated:</strong> {formatDate(merchantProfile.updated_at)}</p>
+              <p><strong>Business Name</strong> {merchantProfile.business_name}</p>
+              <p><strong>Business Category</strong> {merchantProfile.business_category}</p>
+              <p><strong>Contact</strong> {merchantProfile.contact}</p>
+              <p><strong>Email</strong> {merchantProfile.email}</p>
+              <p><strong>Created At</strong> {formatDate(merchantProfile.created_at)}</p>
+              <p><strong>Last Updated</strong> {formatDate(merchantProfile.updated_at)}</p>
             </div>
             <button className="btn btn-primary" onClick={() => navigate('/merchant/profile/edit')}>
               <i className="fas fa-edit"></i> Edit Profile
@@ -747,13 +718,13 @@ const MerchantDashboard = () => {
               Search
             </button>
             <button onClick={handleResetSearch} className="reset-btn">
-              Reset
+              <i className="fas fa-redo-alt"></i> Reset
             </button>
           </div>
 
           <div className="action-buttons">
             <button className="add-product-btn" onClick={toggleAddProductForm}>
-              <i className="fas fa-plus"></i> {showAddProductForm ? 'Cancel' : 'Add New Product'}
+              <i className="fas fa-plus-circle"></i> {showAddProductForm ? 'Cancel' : 'Add New Product'}
             </button>
             <button className="update-product-btn" onClick={toggleUpdateForm}>
               <i className="fas fa-edit"></i> {showUpdateForm ? 'Cancel' : 'Update a Product'}
@@ -785,34 +756,34 @@ const MerchantDashboard = () => {
           <h3><i className="fas fa-plus-circle"></i> Add New Product</h3>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Product Name</label>
-              <input name="name" value={newProduct.name} onChange={handleInputChange} required />
+              <label><i className="fas fa-tag"></i> Product Name</label>
+              <input name="name" value={newProduct.name} onChange={handleInputChange} required placeholder="Enter product name" />
             </div>
 
             <div className="form-group">
-              <label>Description</label>
-              <textarea name="description" value={newProduct.description} onChange={handleInputChange} required />
+              <label><i className="fas fa-align-left"></i> Description</label>
+              <textarea name="description" value={newProduct.description} onChange={handleInputChange} required placeholder="Enter product description" rows="4" />
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Price (₹)</label>
-                <input type="number" name="price" value={newProduct.price} onChange={handleInputChange} required />
+                <label><i className="fas fa-rupee-sign"></i> Price (₹)</label>
+                <input type="number" name="price" value={newProduct.price} onChange={handleInputChange} required placeholder="Enter selling price" />
               </div>
 
               <div className="form-group">
-                <label>MRP (₹)</label>
-                <input type="number" name="mrp" value={newProduct.mrp} onChange={handleInputChange} required />
+                <label><i className="fas fa-tag"></i> MRP (₹)</label>
+                <input type="number" name="mrp" value={newProduct.mrp} onChange={handleInputChange} required placeholder="Enter MRP" />
               </div>
 
               <div className="form-group">
-                <label>Stock</label>
-                <input type="number" name="stock" value={newProduct.stock} onChange={handleInputChange} required />
+                <label><i className="fas fa-cubes"></i> Stock</label>
+                <input type="number" name="stock" value={newProduct.stock} onChange={handleInputChange} required placeholder="Enter stock quantity" />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Business Category</label>
+              <label><i className="fas fa-layer-group"></i> Business Category</label>
               <input 
                 type="text" 
                 name="business_category" 
@@ -824,7 +795,7 @@ const MerchantDashboard = () => {
             </div>
 
             <div className="form-group">
-              <label>Product Image</label>
+              <label><i className="fas fa-image"></i> Product Image</label>
               <input type="file" accept="image/*" onChange={handleImageChange} required />
             </div>
 
@@ -834,7 +805,7 @@ const MerchantDashboard = () => {
                 className="btn btn-success" 
                 disabled={isAddingProduct}
               >
-                {isAddingProduct ? 'Adding Product...' : 'Add Product'}
+                {isAddingProduct ? <><i className="fas fa-spinner fa-spin"></i> Adding Product...</> : <><i className="fas fa-plus-circle"></i> Add Product</>}
               </button>
             </div>
           </form>
@@ -842,16 +813,16 @@ const MerchantDashboard = () => {
       )}
 
       {showUpdateForm && (
-        <div className="update-product-form" style={styles.updateProductForm}>
+        <div className="update-product-form">
           <h3><i className="fas fa-edit"></i> Update Product</h3>
           {selectedProduct ? (
             <>
-              <p className="selected-product-info" style={styles.selectedProductInfo}>
+              <p className="selected-product-info">
                 <i className="fas fa-tag"></i> Updating product: <strong>{selectedProduct.name}</strong> (ID: {selectedProduct.product_id})
               </p>
               <form onSubmit={handleUpdateSubmit}>
                 <div className="form-group">
-                  <label>Product Name</label>
+                  <label><i className="fas fa-tag"></i> Product Name</label>
                   <input
                     type="text"
                     name="product_name"
@@ -859,10 +830,10 @@ const MerchantDashboard = () => {
                     onChange={(e) => setUpdateProduct({...updateProduct, product_name: e.target.value})}
                     placeholder="Enter product name"
                   />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.name}</small>
+                  <small className="form-text">Current value: {selectedProduct.name}</small>
                 </div>
                 <div className="form-group">
-                  <label>Business Category</label>
+                  <label><i className="fas fa-layer-group"></i> Business Category</label>
                   <input
                     type="text"
                     name="business_category"
@@ -870,11 +841,11 @@ const MerchantDashboard = () => {
                     onChange={(e) => setUpdateProduct({...updateProduct, business_category: e.target.value})}
                     placeholder="Enter business category"
                   />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.business_category}</small>
+                  <small className="form-text">Current value: {selectedProduct.business_category}</small>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Price (₹)</label>
+                    <label><i className="fas fa-rupee-sign"></i> Price (₹)</label>
                     <input
                       type="number"
                       name="price"
@@ -882,10 +853,10 @@ const MerchantDashboard = () => {
                       onChange={(e) => setUpdateProduct({...updateProduct, price: e.target.value})}
                       placeholder="Enter price"
                     />
-                    <small className="form-text" style={styles.formText}>Current value: {selectedProduct.price}</small>
+                    <small className="form-text">Current value: {selectedProduct.price}</small>
                   </div>
                   <div className="form-group">
-                    <label>MRP (₹)</label>
+                    <label><i className="fas fa-tag"></i> MRP (₹)</label>
                     <input
                       type="number"
                       name="mrp"
@@ -893,11 +864,11 @@ const MerchantDashboard = () => {
                       onChange={(e) => setUpdateProduct({...updateProduct, mrp: e.target.value})}
                       placeholder="Enter MRP"
                     />
-                    <small className="form-text" style={styles.formText}>Current value: {selectedProduct.mrp}</small>
+                    <small className="form-text">Current value: {selectedProduct.mrp}</small>
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Stock</label>
+                  <label><i className="fas fa-cubes"></i> Stock</label>
                   <input
                     type="number"
                     name="stock"
@@ -905,22 +876,23 @@ const MerchantDashboard = () => {
                     onChange={(e) => setUpdateProduct({...updateProduct, stock: e.target.value})}
                     placeholder="Enter stock"
                   />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.stock}</small>
+                  <small className="form-text">Current value: {selectedProduct.stock}</small>
                 </div>
                 <div className="form-group">
-                  <label>Description</label>
+                  <label><i className="fas fa-align-left"></i> Description</label>
                   <textarea
                     name="description"
                     value={updateProduct.description}
                     onChange={(e) => setUpdateProduct({...updateProduct, description: e.target.value})}
                     placeholder="Enter description"
+                    rows="4"
                   />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.description}</small>
+                  <small className="form-text">Current value: {selectedProduct.description}</small>
                 </div>
                 <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Update Product</button>
+                  <button type="submit" className="btn btn-primary"><i className="fas fa-save"></i> Update Product</button>
                   <button type="button" className="btn btn-secondary" onClick={toggleUpdateForm}>
-                    Cancel
+                    <i className="fas fa-times"></i> Cancel
                   </button>
                 </div>
               </form>
@@ -965,7 +937,7 @@ const MerchantDashboard = () => {
                       />
                     ) : (
                       <div className="placeholder-image">
-                        <i className="fas fa-image"></i>
+                        <i className="fas fa-images"></i>
                         <span>No Image</span>
                       </div>
                     )}
