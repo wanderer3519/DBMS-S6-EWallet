@@ -1,7 +1,7 @@
-import Dashboard from './components/Dashboard';
-import NoPage from './components/NoPage';
-import Login from './components/Login';
-import Register from './components/Register';
+import Dashboard from '../Dashboard';
+import NoPage from '../NoPage';
+import Login from '../Login';
+import Register from '../Register';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 

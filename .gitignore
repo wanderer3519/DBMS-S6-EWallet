@@ -5,4 +5,5 @@ dbms-project/comments.txt/
 *.env
 dbms-frontend/node_modules/
 dbms2/
-*/node_modules/
+*node_modules/
+node_modules/
