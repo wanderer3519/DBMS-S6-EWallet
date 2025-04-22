@@ -10,48 +10,18 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      const storedToken = localStorage.getItem('token');
+      const savedToken = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
       
-      if (storedToken && userData) {
+      if (savedToken && userData) {
         try {
-          // Set token in component state
-          setToken(storedToken);
-          
-          // Set default authorization header for axios
-          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-          
           const parsedUser = JSON.parse(userData);
-          if (parsedUser.user_id) {
-            // We'll validate the token by making a request to get the user profile
-            try {
-              // Get user profile endpoint determined by role
-              const endpoint = 'http://localhost:8000/api/account/profile';
-              
-              const response = await axios.get(endpoint, {
-                headers: {
-                  Authorization: `Bearer ${storedToken}`
-                }
-              });
-              
-              if (response.data) {
-                setUser({ ...parsedUser, ...response.data });
-                console.log('User authenticated from stored credentials');
-              } else {
-                throw new Error('Invalid user data');
-              }
-            } catch (error) {
-              console.error('Error verifying token:', error);
-              // If token is invalid, clear user data
-              localStorage.removeItem('user');
-              localStorage.removeItem('token');
-              delete axios.defaults.headers.common['Authorization'];
-            }
-          } else {
-            // If user data is incomplete, clear it
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-          }
+          
+          // Set default authorization header
+          axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+          
+          setUser(parsedUser);
+          setToken(savedToken);
         } catch (error) {
           console.error('Error parsing user data:', error);
           localStorage.removeItem('user');
@@ -64,7 +34,42 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const login = async (email, password) => {
+  const login = (userData, password) => {
+    // If login is called with object (direct data)
+    if (userData && typeof userData === 'object' && userData.access_token) {
+      const token = userData.access_token;
+      
+      // Set the authorization header
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Create user object
+      const userObj = {
+        user_id: userData.user_id,
+        email: userData.email,
+        name: userData.name || userData.full_name,
+        role: userData.role,
+        account: userData.account
+      };
+      
+      // Store in localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userObj));
+      
+      // Update state
+      setUser(userObj);
+      setToken(token);
+      
+      return { success: true };
+    } 
+    // If login is called with email, password (string params)
+    else if (typeof userData === 'string' && typeof password === 'string') {
+      return loginWithCredentials(userData, password);
+    }
+    
+    return { success: false, error: 'Invalid login data' };
+  };
+
+  const loginWithCredentials = async (email, password) => {
     try {
       const response = await axios.post('http://localhost:8000/login', {
         email,
@@ -72,10 +77,8 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (response.data.access_token) {
-        const tokenValue = response.data.access_token;
-        
         // Set the authorization header for all future requests
-        axios.defaults.headers.common['Authorization'] = `Bearer ${tokenValue}`;
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
         
         const userData = {
           user_id: response.data.user_id,
@@ -85,15 +88,10 @@ export const AuthProvider = ({ children }) => {
           account: response.data.account
         };
 
-        // Store token and user data in localStorage
-        localStorage.setItem('token', tokenValue);
+        localStorage.setItem('token', response.data.access_token);
         localStorage.setItem('user', JSON.stringify(userData));
-        
-        // Update state
         setUser(userData);
-        setToken(tokenValue);
-        
-        console.log('Login successful, token stored');
+        setToken(response.data.access_token);
         return { success: true };
       }
       return { success: false, error: 'Invalid response from server' };
@@ -115,6 +113,7 @@ export const AuthProvider = ({ children }) => {
 
   const merchantLogin = async (email, password) => {
     try {
+      console.log('Merchant login attempt:', email);
       const response = await axios.post('http://localhost:8000/merchant/login', {
         email,
         password
@@ -154,6 +153,59 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const adminLogin = async (email, password) => {
+    try {
+      console.log('Admin login attempt with:', email);
+      const response = await axios.post('http://localhost:8000/admin/login', {
+        email,
+        password
+      });
+
+      console.log('Admin login response:', response.data);
+      
+      if (response.data.access_token) {
+        // Set authorization header
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+        
+        // Create user object with admin role
+        const userData = {
+          user_id: response.data.user_id,
+          email: response.data.email,
+          name: response.data.name || response.data.full_name,
+          role: 'admin' // Explicit admin role
+        };
+
+        console.log('Setting admin user data:', userData);
+        
+        // Store in localStorage
+        localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Update state
+        setUser(userData);
+        setToken(response.data.access_token);
+        
+        return { success: true };
+      }
+      return { success: false, error: 'Invalid response from server' };
+    } catch (error) {
+      console.error('Admin login error:', error);
+      if (error.response) {
+        if (error.response.status === 401) {
+          return { success: false, error: 'Invalid email or password' };
+        }
+        if (error.response.status === 403) {
+          return { success: false, error: 'Access forbidden. Admin privileges required.' };
+        }
+        if (error.response.status === 500) {
+          return { success: false, error: 'Server error. Please try again later.' };
+        }
+        return { success: false, error: error.response.data.detail || 'Login failed' };
+      }
+      return { success: false, error: 'Network error. Please check your connection.' };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -166,7 +218,9 @@ export const AuthProvider = ({ children }) => {
     user,
     loading,
     login,
+    loginWithCredentials,
     merchantLogin,
+    adminLogin,
     logout,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
@@ -186,4 +240,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}; 
+};

@@ -7,39 +7,49 @@ import Signup from './components/Signup';
 import Dashboard from './components/Dashboard';
 import Products from './components/Products';
 import Cart from './components/Cart';
-import Checkout from './components/Checkout';
-import OrderConfirmation from './components/OrderConfirmation';
-import MyOrders from './components/MyOrders';
+import Orders from './components/Orders';
 import MerchantDashboard from './components/MerchantDashboard';
 import MerchantLogin from './components/MerchantLogin';
 import MerchantSignup from './components/MerchantSignup';
 import AdminDashboard from './components/AdminDashboard';
+import AdminLogin from './components/AdminLogin';
+import AdminSignup from './components/AdminSignup';
 import MerchantLogs from './components/MerchantLogs';
 import ProductDetails from './components/ProductDetails';
-import MerchantProfile from './components/MerchantProfile';
-import UserProfile from './components/UserProfile';
-import RewardsConversion from './components/RewardsConversion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 const PrivateRoute = ({ children, roles }) => {
   const { user } = useAuth();
   const location = useLocation();
   
-  console.log('PrivateRoute rendering with path:', location.pathname);
-  console.log('User authenticated:', !!user);
-  
+  // If user isn't logged in, redirect to appropriate login page
   if (!user) {
-    // Redirect to login while saving the attempted URL
-    console.log('Redirecting to login, no user found');
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    console.log("No user found, redirecting to login");
+    
+    // Determine which login page to redirect to based on the attempted route
+    if (location.pathname.startsWith('/admin')) {
+      return <Navigate to="/admin/login" state={{ from: location }} replace />;
+    } else if (location.pathname.startsWith('/merchant')) {
+      return <Navigate to="/merchant/login" state={{ from: location }} replace />;
+    } else {
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
   }
   
+  // If roles are specified and user doesn't have the required role, redirect
   if (roles && !roles.includes(user.role)) {
-    console.log('User role not authorized:', user.role, 'Required roles:', roles);
-    return <Navigate to="/dashboard" replace />;
+    console.log(`User role ${user.role} doesn't match required roles:`, roles);
+    
+    // Redirect based on user's role
+    if (user.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else if (user.role === 'merchant') {
+      return <Navigate to="/merchant" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
   
-  console.log('Rendering protected component for path:', location.pathname);
   return children;
 };
 
@@ -50,56 +60,54 @@ function App() {
         <Navbar />
         <Container className="mt-4">
           <Routes>
+            {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/merchant/login" element={<MerchantLogin />} />
             <Route path="/merchant/signup" element={<MerchantSignup />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/signup" element={<AdminSignup />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/product/:productId" element={<ProductDetails />} />
+            
+            {/* Home route */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            {/* Protected user routes */}
             <Route path="/dashboard" element={
               <PrivateRoute>
                 <Dashboard />
               </PrivateRoute>
             } />
-            <Route path="/dashboard/conversion" element={
-              <PrivateRoute>
-                <RewardsConversion />
-              </PrivateRoute>
-            } />
-            <Route path="/profile" element={
-              <PrivateRoute>
-                <UserProfile />
-              </PrivateRoute>
-            } />
-            <Route path="/products" element={<Products />} />
-            <Route path="/product/:productId" element={<ProductDetails />} />
             <Route path="/cart" element={
               <PrivateRoute>
                 <Cart />
               </PrivateRoute>
             } />
-            <Route path="/checkout" element={
-              <PrivateRoute>
-                <Checkout />
-              </PrivateRoute>
-            } />
-            <Route path="/order-confirmation/:orderId" element={
-              <PrivateRoute>
-                <OrderConfirmation />
-              </PrivateRoute>
-            } />
             <Route path="/orders" element={
               <PrivateRoute>
-                <MyOrders />
+                <Orders />
               </PrivateRoute>
             } />
+            
+            {/* Protected merchant routes */}
             <Route path="/merchant" element={
               <PrivateRoute roles={['merchant']}>
                 <MerchantDashboard />
               </PrivateRoute>
             } />
-            <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
-            <Route path="/merchant/logs" element={<MerchantLogs />} />
-            <Route path="/merchant/profile" element={<MerchantProfile />} />
+            <Route path="/merchant/dashboard" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/merchant/logs" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantLogs />
+              </PrivateRoute>
+            } />
+            
+            {/* Protected admin routes */}
             <Route path="/admin" element={
               <PrivateRoute roles={['admin']}>
                 <AdminDashboard />
@@ -113,4 +121,3 @@ function App() {
 }
 
 export default App;
-   

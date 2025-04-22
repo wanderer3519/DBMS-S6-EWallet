@@ -1,26 +1,27 @@
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, Form, Body, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from database import engine, Base, get_db
-from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants, RewardPoints, RewardStatus
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.sql import text
 from datetime import datetime, timedelta
-from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_active_user, get_current_admin_user, get_current_merchant_user
 from typing import Optional, List
+import jwt
+
+from database import engine, Base, get_db
+from models import Users, UserRole, UserStatus, Product, Cart, CartItem, Order, OrderItem, ProductStatus, OrderStatus, Account, AccountType, Transactions, TransactionType, TransactionStatus, Logs, Merchants
+from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_active_user, get_current_admin_user, get_current_merchant_user
+from file_upload import save_uploaded_file, delete_file
+from schemas import *
+
 import shutil
 import os
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import uuid
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-import jwt
+
 from passlib.context import CryptContext
 from dotenv import load_dotenv
 from sqlalchemy import func
 import schemas
-from file_upload import save_uploaded_file, delete_file, save_profile_image
-import base64
-from decimal import Decimal
 
 # Load environment variables
 load_dotenv()
@@ -990,7 +991,7 @@ def create_order(
             db.add(reward)
             
             # AUTO-CONVERSION: Immediately convert earned points to wallet balance
-            # Calculate reward value (1 point = ₹0.1)
+            # Calculate reward value (1 point = Ã¢â€šÂ¹0.1)
             reward_value = float(earned_points * 0.1)
             
             # Add to account balance
@@ -1013,7 +1014,7 @@ def create_order(
             auto_redeem_log = Logs(
                 user_id=current_user.user_id,
                 action="auto_reward_redemption",
-                description=f"Automatically redeemed {earned_points} points for ₹{reward_value}",
+                description=f"Automatically redeemed {earned_points} points for Ã¢â€šÂ¹{reward_value}",
                 created_at=datetime.utcnow()
             )
             db.add(auto_redeem_log)
@@ -1051,7 +1052,7 @@ def create_order(
         log = Logs(
             user_id=current_user.user_id,
             action="order_creation",
-            description=f"Order {db_order.order_id} created. Total: ₹{total}, Wallet: ₹{wallet_amount}, Rewards: ₹{reward_discount}",
+            description=f"Order {db_order.order_id} created. Total: Ã¢â€šÂ¹{total}, Wallet: Ã¢â€šÂ¹{wallet_amount}, Rewards: Ã¢â€šÂ¹{reward_discount}",
             created_at=datetime.utcnow()
         )
         db.add(log)
@@ -1244,54 +1245,330 @@ async def get_user_orders(
 
 # Admin Endpoints
 @app.get("/admin/logs")
-def get_logs(db: Session = Depends(get_db)):
-    query = text("""
-        SELECT l.log_id, l.user_id, u.full_name, l.action, l.description, l.created_at
-        FROM logs l
-        JOIN "user" u ON l.user_id = u.user_id
-        ORDER BY l.created_at DESC
-    """)
-    result = db.execute(query).fetchall()
-    
-    logs = [
-        {
-            "log_id": row[0],
-            "user_id": row[1],
-            "user_name": row[2],
-            "action": row[3],
-            "description": row[4],
-            "created_at": row[5]
-        }
-        for row in result
-    ]
-    
-    return {"logs": logs}
+def get_logs(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    """Get all logs for admin dashboard - public endpoint for testing"""
+    try:
+        # Get user from token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+            
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+            
+        if user.role != UserRole.admin:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Fetch logs with user names
+        query = text("""
+            SELECT l.log_id, l.user_id, u.full_name, l.action, l.description, l.created_at
+            FROM logs l
+            JOIN users u ON l.user_id = u.user_id
+            ORDER BY l.created_at DESC
+        """)
+        result = db.execute(query).fetchall()
+        
+        logs = [
+            {
+                "log_id": row[0],
+                "user_id": row[1],
+                "user_name": row[2],
+                "action": row[3],
+                "description": row[4],
+                "created_at": row[5]
+            }
+            for row in result
+        ]
+        
+        return {"logs": logs}
+    except Exception as e:
+        print(f"Error fetching logs: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching logs: {str(e)}"
+        )
 
 @app.get("/admin/stats", response_model=AdminStats)
-def get_admin_stats(db: Session = Depends(get_db)):
-    # Get total users
-    total_users = db.query(Users).count()
+def get_admin_stats(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    """Get admin dashboard statistics"""
+    try:
+        # Get user from token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+            
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+            
+        if user.role != UserRole.admin:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Get total users
+        total_users = db.query(Users).count()
+        
+        # Get total orders
+        total_orders = db.query(Order).count()
+        
+        # Get total revenue
+        total_revenue = db.query(Order).filter(Order.status == OrderStatus.completed).with_entities(
+            text("SUM(total_amount)")
+        ).scalar() or 0
+        
+        # Get active merchants
+        active_merchants = db.query(Users).filter(
+            Users.role == UserRole.merchant,
+            Users.status == UserStatus.active
+        ).count()
+        
+        return {
+            "total_users": total_users,
+            "total_orders": total_orders,
+            "total_revenue": float(total_revenue),
+            "active_merchants": active_merchants
+        }
+    except Exception as e:
+        print(f"Error fetching admin stats: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching admin stats: {str(e)}"
+        )
+
+@app.get("/api/admin/stats", response_model=AdminStats)
+async def get_api_admin_stats(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """Get admin dashboard statistics"""
+    try:
+        # Verify token and get user
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = payload.get("sub")
+            if email is None:
+                raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+            
+        # Get user from database
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Check if user is admin
+        if user.role != UserRole.admin:
+            raise HTTPException(status_code=403, detail="Only admin users can access this endpoint")
+        
+        # Get total users
+        total_users = db.query(Users).count()
+        
+        # Get total orders
+        total_orders = db.query(Order).count()
+        
+        # Get total revenue
+        total_revenue = db.query(Order).filter(Order.status == OrderStatus.completed).with_entities(
+            text("SUM(total_amount)")
+        ).scalar() or 0
+        
+        # Get active merchants
+        active_merchants = db.query(Users).filter(
+            Users.role == UserRole.merchant,
+            Users.status == UserStatus.active
+        ).count()
+        
+        return {
+            "total_users": total_users,
+            "total_orders": total_orders,
+            "total_revenue": float(total_revenue),
+            "active_merchants": active_merchants
+        }
+    except Exception as e:
+        print(f"Error in admin stats API: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+# Admin specific endpoints
+@app.post("/admin/signup", response_model=Token)
+async def admin_signup(user: UserCreate, db: Session = Depends(get_db)):
+    # Check if email already exists
+    db_user = db.query(Users).filter(Users.email == user.email).first()
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
     
-    # Get total orders
-    total_orders = db.query(Order).count()
+    # Validate that role is admin
+    if user.role != "admin":
+        user.role = "admin"  # Force role to be admin for this endpoint
     
-    # Get total revenue
-    total_revenue = db.query(Order).filter(Order.status == OrderStatus.completed).with_entities(
-        text("SUM(total_amount)")
-    ).scalar() or 0
+    # Hash password and create user
+    hashed_password = get_password_hash(user.password)
+    db_user = Users(
+        email=user.email,
+        full_name=user.full_name,
+        password_hash=hashed_password,
+        role=UserRole.admin,
+        status=UserStatus.active,
+        created_at=datetime.now()
+    )
     
-    # Get active merchants
-    active_merchants = db.query(Users).filter(
-        Users.role == UserRole.merchant,
-        Users.status == UserStatus.active
-    ).count()
+    # Create admin user
+    db.add(db_user)
+    db.flush()  # Get the user_id without committing
     
+    # Log admin creation
+    log = Logs(
+        user_id=db_user.user_id,
+        action="admin_creation",
+        description=f"Admin user {user.email} created",
+        created_at=datetime.now()
+    )
+    db.add(log)
+    
+    # Create account for new admin with zero balance
+    account = Account(
+        user_id=db_user.user_id,
+        account_type=AccountType.user,
+        balance=0.0,
+        created_at=datetime.now()
+    )
+    db.add(account)
+    
+    db.commit()
+    
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": user.email}
+    )
+    
+    # Return token with user info
     return {
-        "total_users": total_users,
-        "total_orders": total_orders,
-        "total_revenue": float(total_revenue),
-        "active_merchants": active_merchants
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": db_user.user_id,
+        "email": db_user.email,
+        "role": db_user.role.value,
+        "name": db_user.full_name
     }
+
+@app.post("/admin/login", response_model=Token)
+def admin_login(user_data: UserLogin, db: Session = Depends(get_db)):
+    # Find user by email
+    users = db.query(Users).filter(Users.email == user_data.email).first()
+    if not users:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+    
+    # Verify password
+    if not verify_password(user_data.password, users.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+    
+    # Check if user is admin
+    if users.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden. Admin privileges required."
+        )
+    
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": users.email}
+    )
+    
+    # Log admin login
+    log = Logs(
+        user_id=users.user_id,
+        action="admin_login",
+        description=f"Admin {users.email} logged in",
+        created_at=datetime.now()
+    )
+    db.add(log)
+    db.commit()
+    
+    # Get user's account
+    account = db.query(Account).filter(Account.user_id == users.user_id).first()
+    
+    # Return token with user and account information
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": users.user_id,
+        "email": users.email,
+        "role": users.role.value,
+        "name": users.full_name,
+        "account": {
+            "id": account.account_id if account else None,
+            "balance": float(account.balance) if account else 0.0
+        }
+    }
+
+@app.get("/api/admin/orders")
+async def get_admin_orders(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """Get all orders for admin dashboard"""
+    try:
+        # Verify token and get user
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = payload.get("sub")
+            if email is None:
+                raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+            
+        # Get user from database
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Check if user is admin
+        if user.role != UserRole.admin:
+            raise HTTPException(status_code=403, detail="Only admin users can access this endpoint")
+        
+        # Join with users to get user details
+        orders_with_users = (
+            db.query(
+                Order, 
+                Users.full_name.label("user_name")
+            )
+            .join(Users, Order.user_id == Users.user_id)
+            .order_by(Order.created_at.desc())
+            .all()
+        )
+        
+        result = []
+        for order_data, user_name in orders_with_users:
+            result.append({
+                "order_id": order_data.order_id,
+                "user_id": order_data.user_id,
+                "user_name": user_name,
+                "total_amount": float(order_data.total_amount),
+                "status": order_data.status.value,
+                "created_at": order_data.created_at,
+                "updated_at": order_data.updated_at
+            })
+        
+        return result
+    except Exception as e:
+        print(f"Error in admin orders API: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 @app.get("/user/profile/{user_id}", response_model=UserProfileResponse)
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
@@ -1313,89 +1590,6 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
         "accounts": accounts
     }
 
-@app.get("/featured/products", response_model=List[ProductResponse])
-def get_featured_products(db: Session = Depends(get_db)):
-    try:
-        # Get products with discount (where price < mrp)
-        featured_products = db.query(Product).filter(
-            Product.price < Product.mrp,
-            Product.status == ProductStatus.active,
-            Product.stock > 0
-        ).order_by(Product.mrp - Product.price).limit(10).all()
-        if featured_products:
-            return featured_products
-        else:
-            # If no featured products found, return some sample products
-            # This is temporary for frontend testing
-            sample_products = [
-                {
-                    "product_id": 1,
-                    "name": "Smartphone X",
-                    "description": "Latest smartphone with amazing features",
-                    "price": 799.99,
-                    "mrp": 999.99,
-                    "stock": 10,
-                    "image_url": "https://via.placeholder.com/300",
-                    "status": ProductStatus.active
-                },
-                {
-                    "product_id": 2,
-                    "name": "Wireless Earbuds",
-                    "description": "High quality sound with noise cancellation",
-                    "price": 129.99,
-                    "mrp": 149.99,
-                    "stock": 15,
-                    "image_url": "https://via.placeholder.com/300",
-                    "status": ProductStatus.active
-                },
-                {
-                    "product_id": 3,
-                    "name": "Smart Watch",
-                    "description": "Track your fitness and stay connected",
-                    "price": 249.99,
-                    "mrp": 299.99,
-                    "stock": 5,
-                    "image_url": "https://via.placeholder.com/300",
-                    "status": ProductStatus.active
-                }
-            ]
-            return sample_products
-    except Exception as e:
-        print(f"Error fetching featured products: {e}")
-        # Return sample products for frontend testing
-        sample_products = [
-            {
-                "product_id": 1,
-                "name": "Smartphone X",
-                "description": "Latest smartphone with amazing features",
-                "price": 799.99,
-                "mrp": 999.99,
-                "stock": 10,
-                "image_url": "https://via.placeholder.com/300",
-                "status": ProductStatus.active
-            },
-            {
-                "product_id": 2,
-                "name": "Wireless Earbuds",
-                "description": "High quality sound with noise cancellation",
-                "price": 129.99,
-                "mrp": 149.99,
-                "stock": 15,
-                "image_url": "https://via.placeholder.com/300",
-                "status": ProductStatus.active
-            },
-            {
-                "product_id": 3,
-                "name": "Smart Watch",
-                "description": "Track your fitness and stay connected",
-                "price": 249.99,
-                "mrp": 299.99,
-                "stock": 5,
-                "image_url": "https://via.placeholder.com/300",
-                "status": ProductStatus.active
-            }
-        ]
-        return sample_products
 
 @app.get("/products/category/{category}", response_model=List[ProductResponse])
 async def get_products_by_category(category: str, db: Session = Depends(get_db)):
@@ -1490,63 +1684,6 @@ async def change_password(
     db.commit()
     return {"message": "Password updated successfully"}
 
-@app.get("/api/admin/stats")
-async def get_admin_stats(
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can access statistics"
-        )
-    
-    # Get total users
-    total_users = db.query(Users).count()
-    
-    # Get total orders
-    total_orders = db.query(Order).count()
-    
-    # Get total revenue
-    total_revenue = db.query(Order).filter(Order.status == OrderStatus.completed).with_entities(
-        text("SUM(total_amount)")
-    ).scalar() or 0
-    
-    # Get active merchants
-    active_merchants = db.query(Users).filter(
-        Users.role == UserRole.merchant,
-        Users.status == UserStatus.active
-    ).count()
-    
-    return {
-        "total_users": total_users,
-        "total_orders": total_orders,
-        "total_revenue": float(total_revenue),
-        "active_merchants": active_merchants
-    }
-
-@app.get("/api/admin/logs")
-async def get_admin_logs(
-    start_date: datetime = None,
-    end_date: datetime = None,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can access logs"
-        )
-    
-    query = db.query(Logs)
-    
-    if start_date:
-        query = query.filter(Logs.created_at >= start_date)
-    if end_date:
-        query = query.filter(Logs.created_at <= end_date)
-    
-    logs = query.order_by(Logs.created_at.desc()).all()
-    return logs
 
 @app.get("/api/merchant/products", response_model=List[ProductResponse])
 async def get_merchant_products(
@@ -2254,7 +2391,7 @@ async def process_checkout(
                     detail=f"Insufficient reward points. Available: {total_points}"
                 )
             
-            # Calculate reward value (1 point = ₹0.1)
+            # Calculate reward value (1 point = Ã¢â€šÂ¹0.1)
             reward_discount = float(reward_points) * 0.1
         
         # Calculate wallet amount to use
@@ -2379,7 +2516,7 @@ async def process_checkout(
         log = Logs(
             user_id=current_user.user_id,
             action="order_creation",
-            description=f"Order {db_order.order_id} created. Total: ₹{total}, Wallet: ₹{wallet_amount}, Rewards: ₹{reward_discount}",
+            description=f"Order {db_order.order_id} created. Total: Ã¢â€šÂ¹{total}, Wallet: Ã¢â€šÂ¹{wallet_amount}, Rewards: Ã¢â€šÂ¹{reward_discount}",
             created_at=created_at
         )
         db.add(log)
@@ -2453,7 +2590,7 @@ async def add_funds(
         log = Logs(
             user_id=current_user.user_id,
             action="wallet_top_up",
-            description=f"Added ₹{amount} to wallet via {payment_method}",
+            description=f"Added Ã¢â€šÂ¹{amount} to wallet via {payment_method}",
             created_at=datetime.utcnow()
         )
         db.add(log)
@@ -2485,7 +2622,7 @@ async def get_rewards(
         
         return {
             "total_points": total_points,
-            "points_value": float(total_points * 0.1),  # 1 point = ₹0.1
+            "points_value": float(total_points * 0.1),  # 1 point = Ã¢â€šÂ¹0.1
             "rewards": [
                 {
                     "reward_id": reward.reward_id,
@@ -2519,7 +2656,7 @@ async def redeem_rewards_path(
                 detail=f"Insufficient reward points. Available: {total_points}"
             )
 
-        # Calculate reward value (1 point = ₹0.1)
+        # Calculate reward value (1 point = Ã¢â€šÂ¹0.1)
         # Convert to Decimal to match the account.balance type
         reward_value = Decimal(str(points * 0.1))
 
@@ -2570,7 +2707,7 @@ async def redeem_rewards_path(
         log = Logs(
             user_id=current_user.user_id,
             action="reward_redemption",
-            description=f"Redeemed {points} points for ₹{float(reward_value)}",
+            description=f"Redeemed {points} points for Ã¢â€šÂ¹{float(reward_value)}",
             created_at=datetime.utcnow()
         )
         db.add(log)
@@ -2578,7 +2715,7 @@ async def redeem_rewards_path(
         db.commit()
 
         return {
-            "message": f"Successfully redeemed {points} points for ₹{float(reward_value)}",
+            "message": f"Successfully redeemed {points} points for Ã¢â€šÂ¹{float(reward_value)}",
             "new_balance": float(account.balance),
             "remaining_points": total_points - points
         }
@@ -2597,7 +2734,7 @@ async def convert_reward_points_to_wallet(user_id: int, earned_points: int, db: 
     if earned_points <= 0:
         return 0.0
         
-    # Calculate reward value (1 point = ₹0.1)
+    # Calculate reward value (1 point = Ã¢â€šÂ¹0.1)
     # Convert to Decimal to match the account.balance type
     reward_value = Decimal(str(earned_points * 0.1))
     
@@ -2623,7 +2760,7 @@ async def convert_reward_points_to_wallet(user_id: int, earned_points: int, db: 
     log = Logs(
         user_id=user_id,
         action="reward_conversion",
-        description=f"Converted {earned_points} reward points to ₹{float(reward_value)} in wallet",
+        description=f"Converted {earned_points} reward points to Ã¢â€šÂ¹{float(reward_value)} in wallet",
         created_at=datetime.utcnow()
     )
     db.add(log)
@@ -2681,4 +2818,76 @@ async def upload_profile_image(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-
+    
+@app.get("/api/admin/logs")
+async def get_admin_logs(
+    action: str = None,
+    date: str = None,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """Get filtered logs for admin dashboard"""
+    try:
+        # Verify token and get user
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email = payload.get("sub")
+            if email is None:
+                raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+            
+        # Get user from database
+        user = db.query(Users).filter(Users.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Check if user is admin
+        if user.role != UserRole.admin:
+            raise HTTPException(status_code=403, detail="Only admin users can access this endpoint")
+        
+        # Build query for logs
+        query = (
+            db.query(
+                Logs,
+                Users.full_name.label("user_name"),
+                Users.email.label("user_email"),
+                Users.role.label("user_role")
+            )
+            .join(Users, Logs.user_id == Users.user_id)
+            .order_by(Logs.created_at.desc())
+        )
+        
+        # Apply filters if provided
+        if action:
+            query = query.filter(Logs.action == action)
+        
+        if date:
+            # Filter for specific date
+            date_obj = datetime.strptime(date, "%Y-%m-%d")
+            next_day = date_obj + timedelta(days=1)
+            query = query.filter(Logs.created_at >= date_obj, Logs.created_at < next_day)
+        
+        # Execute query and format results
+        log_results = query.all()
+        logs = []
+        
+        for log, user_name, user_email, user_role in log_results:
+            logs.append({
+                "log_id": log.log_id,
+                "user_id": log.user_id,
+                "user_name": user_name,
+                "user_email": user_email,
+                "user_role": user_role.value if user_role else None,
+                "action": log.action,
+                "description": log.description,
+                "created_at": log.created_at
+            })
+        
+        return {"logs": logs}
+    except Exception as e:
+        print(f"Error in admin logs API: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

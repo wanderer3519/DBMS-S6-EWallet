@@ -56,6 +56,15 @@ const Navbar = () => {
                     <Dropdown.Item as={Link} to="/merchant/signup">Signup</Dropdown.Item>
                   </Dropdown.Menu>
                 </Dropdown>
+                <Dropdown as={Nav.Item}>
+                  <Dropdown.Toggle as={Nav.Link} id="admin-dropdown">
+                    Admin
+                  </Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Item as={Link} to="/admin/login">Login</Dropdown.Item>
+                    <Dropdown.Item as={Link} to="/admin/signup">Signup</Dropdown.Item>
+                  </Dropdown.Menu>
+                </Dropdown>
               </>
             )}
           </Nav>
