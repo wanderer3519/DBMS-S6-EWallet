@@ -97,9 +97,21 @@ function App() {
                 <MerchantDashboard />
               </PrivateRoute>
             } />
-            <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
-            <Route path="/merchant/logs" element={<MerchantLogs />} />
-            <Route path="/merchant/profile" element={<MerchantProfile />} />
+            <Route path="/merchant/dashboard" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/merchant/logs" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantLogs />
+              </PrivateRoute>
+            } />
+            <Route path="/merchant/profile" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantProfile />
+              </PrivateRoute>
+            } />
             <Route path="/admin" element={
               <PrivateRoute roles={['admin']}>
                 <AdminDashboard />

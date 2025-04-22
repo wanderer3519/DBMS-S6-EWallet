@@ -541,10 +541,7 @@ const MerchantDashboard = () => {
   };
 
   const handleLogsClick = () => {
-    setShowLogs(!showLogs);
-    if (!showLogs) {
-      fetchMerchantLogs();
-    }
+    navigate('/merchant/logs');
   };
 
   const handleSearch = () => {

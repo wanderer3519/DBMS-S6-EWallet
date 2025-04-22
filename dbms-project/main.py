@@ -1868,46 +1868,69 @@ async def get_merchant_logs(
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.user_id != merchant_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Can only access your own logs"
-        )
-    
-    # Get all products for this merchant
-    products = db.query(Product).filter(Product.merchant_id == merchant_id).all()
-    product_ids = [p.product_id for p in products]
-    
-    # Query logs for these products
-    logs = []
-    for product in products:
-        # Get creation log
-        logs.append({
-            "product_name": product.name,
-            "action": "Product Created",
-            "business_category": product.business_category,
-            "price": product.price,
-            "stock": product.stock,
-            "description": product.description,
-            "timestamp": product.created_at
-        })
+    try:
+        if current_user.user_id != merchant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Can only access your own logs"
+            )
         
-        # Get update logs if the product was updated
-        if product.updated_at > product.created_at:
-            logs.append({
+        # Get merchant record
+        merchant = db.query(Merchants).filter(Merchants.user_id == merchant_id).first()
+        if not merchant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Merchant not found"
+            )
+        
+        # Get all products for this merchant
+        products = db.query(Product).filter(Product.merchant_id == merchant.merchant_id).all()
+        if not products:
+            return [] # Return empty list if no products found
+        
+        # Query logs for these products
+        logs = []
+        for product in products:
+            # Format product data for consistent response
+            product_data = {
+                "product_id": product.product_id,
                 "product_name": product.name,
-                "action": "Product Updated",
                 "business_category": product.business_category,
-                "price": product.price,
+                "price": float(product.price) if product.price else 0,
+                "mrp": float(product.mrp) if product.mrp else 0,
                 "stock": product.stock,
                 "description": product.description,
-                "timestamp": product.updated_at
+                "image_url": product.image_url,
+                "status": product.status.value if product.status else "unknown"
+            }
+            
+            # Get creation log
+            logs.append({
+                **product_data,
+                "action": "Product Created",
+                "timestamp": product.created_at
             })
+            
+            # Get update logs if the product was updated
+            if product.updated_at and product.updated_at > product.created_at:
+                logs.append({
+                    **product_data,
+                    "action": "Product Updated", 
+                    "timestamp": product.updated_at
+                })
+        
+        # Sort logs by timestamp (newest first)
+        logs.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return logs
     
-    # Sort logs by timestamp (newest first)
-    logs.sort(key=lambda x: x["timestamp"], reverse=True)
-    
-    return logs
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching merchant logs: {str(e)}"
+        )
 
 @app.get("/api/products/{product_id}", response_model=ProductResponse)
 async def get_product_details(
