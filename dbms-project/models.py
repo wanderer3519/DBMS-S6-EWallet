@@ -97,6 +97,7 @@ class Logs(Base):
     __tablename__ = "logs"
     log_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
+    user_role = Column(Enum(UserRole))
     action = Column(String)
     description = Column(String)
     created_at = Column(TIMESTAMP)

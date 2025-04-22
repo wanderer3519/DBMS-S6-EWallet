@@ -23,6 +23,7 @@ from passlib.context import CryptContext
 from dotenv import load_dotenv
 import base64
 from decimal import Decimal
+from admin_utils import log_user_activity, get_user_purchase_history, get_merchant_stock_updates, get_admin_dashboard_stats
 
 # Load environment variables
 load_dotenv()
@@ -154,14 +155,14 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
         
         # Log login
-        log = Logs(
+        log_user_activity(
+            db=db,
             user_id=users.user_id,
-            action="user_login",
+            user_role=users.role,
+            action="login",
             description=f"User {users.email} logged in",
-            created_at=datetime.utcnow()
+            entity_type="user"
         )
-        db.add(log)
-        db.commit()
         
         # Get user's account
         account = db.query(Account).filter(Account.user_id == users.user_id).first()
@@ -828,7 +829,8 @@ def create_order(
                 order_id=db_order.order_id,
                 product_id=product.product_id,
                 quantity=quantity,
-                price=product.price
+                price_at_time=float(product.price),
+                created_at=datetime.utcnow()
             )
             db.add(order_item)
             
@@ -1111,8 +1113,12 @@ def get_logs(db: Session = Depends(get_db)):
     """)
     result = db.execute(query).fetchall()
     
-    logs = [
-        {
+    logs_result = db.execute(logs_query).fetchall()
+
+    # Format the logs
+    logs = []
+    for row in logs_result:
+        log = {
             "log_id": row[0],
             "user_id": row[1],
             "user_name": row[2],
@@ -1120,9 +1126,40 @@ def get_logs(db: Session = Depends(get_db)):
             "description": row[4],
             "created_at": row[5]
         }
-        for row in result
-    ]
-    
+
+        # Check if the action is "Order Placed"
+        if log["action"] == "Order Placed":
+            order_query = text("""
+                SELECT oi.product_id, p.name, oi.quantity
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.product_id
+                WHERE oi.order_id = :order_id
+            """)
+            order_items = db.execute(order_query, {"order_id": log["description"]}).fetchall()
+            log["order_details"] = [
+                {"product_id": item[0], "product_name": item[1], "quantity": item[2]}
+                for item in order_items
+            ]
+
+        # Check if the action is "Stock Added"
+        elif log["action"] == "Stock Added":
+            stock_query = text("""
+                SELECT p.product_id, p.name, p.description
+                FROM products p
+                WHERE p.merchant_id = :merchant_id
+                AND p.created_at = :created_at
+            """)
+            stock_items = db.execute(stock_query, {
+                "merchant_id": log["user_id"],
+                "created_at": log["created_at"]
+            }).fetchall()
+            log["stock_details"] = [
+                {"product_id": item[0], "product_name": item[1], "description": item[2]}
+                for item in stock_items
+            ]
+
+        logs.append(log)
+
     return {"logs": logs}
 
 @app.get("/admin/stats", response_model=AdminStats)
@@ -1501,6 +1538,23 @@ async def create_merchant_product(
         db.add(product)
         db.commit()
         db.refresh(product)
+
+        # Log the stock update
+        log_user_activity(
+            db=db,
+            user_id=current_user.user_id,
+            user_role=current_user.role,
+            action="stock_update",
+            description=f"Added new product: {name} with initial stock: {stock}",
+            entity_type="product",
+            entity_id=product.product_id,
+            metadata={
+                "initial_stock": stock,
+                "price": price,
+                "mrp": mrp,
+                "business_category": business_category
+            }
+        )
         
         return product
     except Exception as e:
@@ -2267,22 +2321,24 @@ async def process_checkout(
         
         db.commit()
         
-        # Get order items with product details
-        items = []
-        for item in order_items:
-            product = item[0]
-            quantity = item[1]
-            items.append({
-                "order_item_id": 0,  # Will be set by the database
-                "order_id": db_order.order_id,
-                "product_id": product.product_id,
-                "quantity": quantity,
-                "price_at_time": float(product.price),
-                "created_at": created_at,
-                "name": product.name,
-                "image_url": product.image_url
-            })
-        
+        # Log the purchase
+        log_user_activity(
+            db=db,
+            user_id=current_user.user_id,
+            user_role=current_user.role,
+            action="purchase",
+            description=f"Order placed: {db_order.order_id}",
+            entity_type="order",
+            entity_id=db_order.order_id,
+            metadata={
+                "total_amount": float(db_order.total_amount),
+                "payment_method": db_order.payment_method,
+                "use_wallet": db_order.wallet_amount > 0,
+                "use_rewards": db_order.reward_discount > 0,
+                "reward_points": db_order.reward_discount / 0.1
+            }
+        )     
+
         return {
             "order_id": db_order.order_id,
             "user_id": current_user.user_id,
@@ -2563,3 +2619,43 @@ async def upload_profile_image(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/admin/dashboard")
+async def admin_dashboard(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin users can access this endpoint"
+        )
+    
+    return get_admin_dashboard_stats(db)
+
+@app.get("/api/admin/user/{user_id}/purchases")
+async def get_user_purchases(
+    user_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin users can access this endpoint"
+        )
+    
+    return get_user_purchase_history(db, user_id)
+
+@app.get("/api/admin/merchant/{merchant_id}/stock-updates")
+async def get_merchant_stock_history(
+    merchant_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin users can access this endpoint"
+        )
+    
+    return get_merchant_stock_updates(db, merchant_id)
