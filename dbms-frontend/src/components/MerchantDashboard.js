@@ -550,6 +550,8 @@ const MerchantDashboard = () => {
       const token = localStorage.getItem('token');
       const user = JSON.parse(localStorage.getItem('user'));
       
+      console.log('Fetching logs for user:', user);
+
       if (!token || !user) {
         navigate('/merchant/login');
         return;

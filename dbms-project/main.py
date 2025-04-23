@@ -75,6 +75,7 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_id: Optional[int] = None
     
 
 class TokenData(BaseModel):
@@ -230,7 +231,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             password_hash=hashed_password,
             role=user.role,
             status=UserStatus.active,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         
         db.add(db_user)
@@ -241,7 +242,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             user_id=db_user.user_id,
             account_type=AccountType.user,
             balance=0.0,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(account)
         
@@ -250,7 +251,7 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             user_id=db_user.user_id,
             action="user_creation",
             description=f"User {user.email} created with role {user.role}",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         
@@ -301,7 +302,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
             user_id=users.user_id,
             action="user_login",
             description=f"User {users.email} logged in",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         db.commit()
@@ -310,18 +311,12 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         account = db.query(Account).filter(Account.user_id == users.user_id).first()
         
         # Return token with user and account information
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user_id": users.user_id,
-            "email": users.email,
-            "role": users.role,
-            "name": users.full_name,
-            "account": {
-                "id": account.account_id if account else None,
-                "balance": float(account.balance) if account else 0.0
-            }
-        }
+        return Token(
+            access_token =  access_token,
+            token_type = "bearer",
+            user_id =  users.user_id
+        )   
+        
     except Exception as e:
         print(f"Login error: {str(e)}")
         raise HTTPException(
@@ -342,7 +337,7 @@ def create_account(account: AccountCreate, user_id: int, db: Session = Depends(g
         user_id=user_id,
         account_type=account.account_type,
         balance=0.0,
-        created_at=datetime.utcnow()
+        created_at=datetime.now()
     )
     
     db.add(db_account)
@@ -354,7 +349,7 @@ def create_account(account: AccountCreate, user_id: int, db: Session = Depends(g
         user_id=user_id,
         action="account_creation",
         description=f"Account {db_account.account_id} created for user {user.email}",
-        created_at=datetime.utcnow()
+        created_at=datetime.now()
     )
     db.add(log)
     db.commit()
@@ -379,7 +374,7 @@ def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)
         amount=amount,
         transaction_type=TransactionType.top_up,
         status=TransactionStatus.completed,
-        created_at=datetime.utcnow()
+        created_at=datetime.now()
     )
     
     db.add(transaction)
@@ -392,7 +387,7 @@ def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)
         user_id=account.user_id,
         action="account_top_up",
         description=f"Account {account_id} topped up with {amount}",
-        created_at=datetime.utcnow()
+        created_at=datetime.now()
     )
     db.add(log)
     
@@ -415,7 +410,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
             amount=transaction.amount,
             transaction_type=transaction.transaction_type,
             status=TransactionStatus.pending,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         
         db.add(db_transaction)
@@ -427,7 +422,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
             user_id=account.user_id,
             action="transaction_creation",
             description=f"Transaction {db_transaction.transaction_id} created for account {transaction.account_id}",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         db.commit()
@@ -507,8 +502,8 @@ async def create_product(
             stock=product.stock,
             business_category=product.business_category,
             merchant_id=merchant_id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
 
         # Save product
@@ -574,7 +569,7 @@ async def upload_product_image(
     
     # Generate unique filename
     file_extension = file.filename.split(".")[-1]
-    filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{current_user.id}.{file_extension}"
+    filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{current_user.id}.{file_extension}"
     file_path = os.path.join("uploads", filename)
     
     # Save the file
@@ -597,8 +592,8 @@ async def add_to_cart(
         if not cart:
             cart = Cart(
                 user_id=current_user.user_id,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
             db.add(cart)
             db.commit()
@@ -619,14 +614,14 @@ async def add_to_cart(
         
         if cart_item:
             cart_item.quantity += item.quantity
-            cart_item.updated_at = datetime.utcnow()
+            cart_item.updated_at = datetime.now()
         else:
             cart_item = CartItem(
                 cart_id=cart.cart_id,
                 product_id=item.product_id,
                 quantity=item.quantity,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
             db.add(cart_item)
         
@@ -654,7 +649,7 @@ async def add_to_cart(
             user_id=current_user.user_id,
             action="cart_update",
             description=f"User {current_user.user_id} added product {item.product_id} to cart",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         db.commit()
@@ -723,7 +718,7 @@ async def remove_from_cart(
             user_id=current_user.user_id,
             action="cart_update",
             description=f"User {current_user.user_id} removed product {product_id} from cart",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         
@@ -747,8 +742,8 @@ async def get_current_user_cart(
                 "user_id": current_user.user_id,
                 "items": [],
                 "total_amount": 0,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "created_at": datetime.now(),
+                "updated_at": datetime.now()
             }
         
         # Get cart items with product details
@@ -815,14 +810,14 @@ async def update_cart_item(
             raise HTTPException(status_code=404, detail="Item not found in cart")
         
         cart_item.quantity = quantity
-        cart_item.updated_at = datetime.utcnow()
+        cart_item.updated_at = datetime.now()
         
         # Log cart update
         log = Logs(
             user_id=current_user.user_id,
             action="cart_update",
             description=f"User {current_user.user_id} updated quantity of product {product_id} to {quantity}",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         
@@ -941,7 +936,7 @@ def create_order(
                     amount=wallet_amount,
                     transaction_type=TransactionType.purchase,
                     status=TransactionStatus.completed,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now()
                 )
                 db.add(wallet_transaction)
 
@@ -960,7 +955,7 @@ def create_order(
             reward_discount=reward_discount,
             payment_method=payment_method,
             status=OrderStatus.completed,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(db_order)
         db.flush()
@@ -986,7 +981,7 @@ def create_order(
                 user_id=current_user.user_id,
                 points=earned_points,
                 status=RewardStatus.earned,
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             )
             db.add(reward)
             
@@ -1006,7 +1001,7 @@ def create_order(
                 amount=reward_value,
                 transaction_type=TransactionType.reward_redemption,
                 status=TransactionStatus.completed,
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             )
             db.add(auto_redeem_transaction)
             
@@ -1015,7 +1010,7 @@ def create_order(
                 user_id=current_user.user_id,
                 action="auto_reward_redemption",
                 description=f"Automatically redeemed {earned_points} points for ₹{reward_value}",
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             )
             db.add(auto_redeem_log)
 
@@ -1040,7 +1035,7 @@ def create_order(
                         user_id=reward.user_id,
                         points=remaining_points,
                         status=RewardStatus.earned,
-                        created_at=datetime.utcnow()
+                        created_at=datetime.now()
                     )
                     db.add(new_reward)
                     points_to_redeem = 0
@@ -1053,7 +1048,7 @@ def create_order(
             user_id=current_user.user_id,
             action="order_creation",
             description=f"Order {db_order.order_id} created. Total: ₹{total}, Wallet: ₹{wallet_amount}, Rewards: ₹{reward_discount}",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
 
@@ -1070,7 +1065,7 @@ def create_order(
                 "product_id": product.product_id,
                 "quantity": quantity,
                 "price_at_time": float(product.price),
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(),
                 "name": product.name,
                 "image_url": product.image_url
             })
@@ -1729,7 +1724,7 @@ async def update_profile(
             user_id=current_user.user_id,
             action="profile_update",
             description=f"User {current_user.user_id} updated profile information",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         db.commit()
@@ -1877,7 +1872,7 @@ async def create_merchant_product(
         
         if not merchant:
             # Create a new merchant entry for this business category
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             merchant = Merchants(
                 user_id=current_user.user_id,
                 merchant_id=current_user.user_id,  # Using user_id as merchant_id
@@ -1902,7 +1897,7 @@ async def create_merchant_product(
         image_url = await save_uploaded_file(image)
 
         # Create product with current timestamp
-        current_time = datetime.utcnow()
+        current_time = datetime.now()
         product = Product(
             merchant_id=merchant.merchant_id,
             name=name,
@@ -2001,11 +1996,11 @@ async def update_merchant_product(
             product.image_url = await save_uploaded_file(image)
 
         # Update timestamp
-        product.updated_at = datetime.utcnow()
+        product.updated_at = datetime.now()
         
         # Keep the original created_at timestamp
         if not product.created_at:
-            product.created_at = datetime.utcnow()
+            product.created_at = datetime.now()
 
         db.commit()
         db.refresh(product)
@@ -2015,7 +2010,7 @@ async def update_merchant_product(
             user_id=current_user.user_id,
             action="product_update",
             description=f"Updated product {product.name} (ID: {product.product_id})",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         db.commit()
@@ -2083,8 +2078,8 @@ async def create_product(
             stock=stock,
             image_url=image_url,
             status=ProductStatus.active,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
         db.add(product)
         db.commit()
@@ -2149,7 +2144,7 @@ async def update_product(
         # Save new image
         product.image_url = await save_uploaded_file(image, "products")
 
-    product.updated_at = datetime.utcnow()
+    product.updated_at = datetime.now()
     db.commit()
     db.refresh(product)
     return product
@@ -2225,7 +2220,7 @@ async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
             role=UserRole.merchant,
             status=UserStatus.active,
             phone=user.contact,  # Store contact as phone
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(db_user)
         db.flush()  # Flush to get the user_id
@@ -2239,8 +2234,8 @@ async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
             name=user.full_name,
             email=user.email,
             contact=user.contact or "",  # Use contact from user input
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
         db.add(merchant)
         db.commit()
@@ -2272,7 +2267,7 @@ def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
                 detail="Incorrect email or password"
             )
         access_token = create_access_token(data={"sub": users.email})
-        return {"access_token": access_token, "token_type": "bearer"}
+        return Token(access_token= access_token, token_type =  "bearer", user_id = users.user_id)
     except Exception as e:
         print(f"Error during merchant login: {e}")
         raise HTTPException(
@@ -2301,6 +2296,7 @@ async def get_merchant_logs(
     logs = []
     for product in products:
         # Get creation log
+
         logs.append({
             "product_name": product.name,
             "action": "Product Created",
@@ -2420,7 +2416,7 @@ async def update_merchant_profile(
             merchant.contact = contact
         
         # Update timestamp
-        merchant.updated_at = datetime.utcnow()
+        merchant.updated_at = datetime.now()
         
         db.commit()
         db.refresh(merchant)
@@ -2555,7 +2551,7 @@ async def process_checkout(
             raise HTTPException(status_code=400, detail="Insufficient wallet balance. Please select another payment method.")
         
         # Create order
-        created_at = datetime.utcnow()
+        created_at = datetime.now()
         if order_date:
             try:
                 created_at = datetime.fromisoformat(order_date.replace('Z', '+00:00'))
@@ -2719,7 +2715,7 @@ async def add_funds(
             amount=amount,
             transaction_type=TransactionType.top_up,
             status=TransactionStatus.completed,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(transaction)
 
@@ -2731,7 +2727,7 @@ async def add_funds(
             user_id=current_user.user_id,
             action="wallet_top_up",
             description=f"Added ₹{amount} to wallet via {payment_method}",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
 
@@ -2828,7 +2824,7 @@ async def redeem_rewards_path(
                     user_id=reward.user_id,
                     points=remaining_points,
                     status=RewardStatus.earned,
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now()
                 )
                 db.add(new_reward)
                 points_to_redeem = 0
@@ -2839,7 +2835,7 @@ async def redeem_rewards_path(
             amount=float(reward_value),  # Convert Decimal to float for storage
             transaction_type=TransactionType.reward_redemption,
             status=TransactionStatus.completed,
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(transaction)
 
@@ -2848,7 +2844,7 @@ async def redeem_rewards_path(
             user_id=current_user.user_id,
             action="reward_redemption",
             description=f"Redeemed {points} points for ₹{float(reward_value)}",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
 
@@ -2901,7 +2897,7 @@ async def convert_reward_points_to_wallet(user_id: int, earned_points: int, db: 
         user_id=user_id,
         action="reward_conversion",
         description=f"Converted {earned_points} reward points to ₹{float(reward_value)} in wallet",
-        created_at=datetime.utcnow()
+        created_at=datetime.now()
     )
     db.add(log)
     
@@ -2949,7 +2945,7 @@ async def upload_profile_image(
             user_id=current_user.user_id,
             action="profile_update",
             description=f"User {current_user.user_id} updated profile image",
-            created_at=datetime.utcnow()
+            created_at=datetime.now()
         )
         db.add(log)
         db.commit()
