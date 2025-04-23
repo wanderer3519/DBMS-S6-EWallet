@@ -154,6 +154,59 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const adminLogin = async (email, password) => {
+    try {
+      console.log('Admin login attempt with:', email);
+      const response = await axios.post('http://localhost:8000/admin/login', {
+        email,
+        password
+      });
+
+      console.log('Admin login response:', response.data);
+      
+      if (response.data.access_token) {
+        // Set authorization header
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+        
+        // Create user object with admin role
+        const userData = {
+          user_id: response.data.user_id,
+          email: response.data.email,
+          name: response.data.name || response.data.full_name,
+          role: 'admin' // Explicit admin role
+        };
+
+        console.log('Setting admin user data:', userData);
+        
+        // Store in localStorage
+        localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Update state
+        setUser(userData);
+        setToken(response.data.access_token);
+        
+        return { success: true };
+      }
+      return { success: false, error: 'Invalid response from server' };
+    } catch (error) {
+      console.error('Admin login error:', error);
+      if (error.response) {
+        if (error.response.status === 401) {
+          return { success: false, error: 'Invalid email or password' };
+        }
+        if (error.response.status === 403) {
+          return { success: false, error: 'Access forbidden. Admin privileges required.' };
+        }
+        if (error.response.status === 500) {
+          return { success: false, error: 'Server error. Please try again later.' };
+        }
+        return { success: false, error: error.response.data.detail || 'Login failed' };
+      }
+      return { success: false, error: 'Network error. Please check your connection.' };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -167,6 +220,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     merchantLogin,
+    adminLogin,
     logout,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin',
