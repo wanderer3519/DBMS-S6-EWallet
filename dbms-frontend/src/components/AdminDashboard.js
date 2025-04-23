@@ -163,6 +163,121 @@ const AdminDashboard = () => {
         }
     };
 
+    // Standard structured log description for all log types
+    const formatLogInfo = (log) => {
+        // Determine the role - simplify to just User, Merchant, or Admin
+        const role = log.user_role ? 
+            log.user_role.toLowerCase() === 'admin' ? 'Admin' :
+            log.user_role.toLowerCase() === 'merchant' ? 'Merchant' : 
+            'User' : 
+            'User';
+            
+        return (
+            <>
+                <div>
+                <Badge bg="secondary" className="me-1">Role</Badge> {log.description?.split(" ")[0]}
+                </div>
+                <div><Badge bg="secondary" className="me-1">User_name</Badge> {log.user_name || log.user_id || "N/A"}</div>
+                <div>
+                    <Badge bg="secondary" className="me-1">Action</Badge> {log.description?.split(" ").slice(2).join(" ")}
+                </div>
+                <div><Badge bg="secondary" className="me-1">Description</Badge> {log.description || "N/A"}</div>
+
+                {getAdditionalDetails(log)}
+            </>
+        );
+    };
+
+    // Get the main description text
+    const getLogDescription = (log) => {
+        if (log.action === 'user_login') {
+            return "Just Logged In";
+        }
+        
+        if (log.action?.toLowerCase().includes('order')) {
+            return `Created Order #${log.order_id}`;
+        }
+        
+        if (log.action?.toLowerCase().includes('profile')) {
+            return "Updated Profile Information";
+        }
+        
+        if (log.action?.toLowerCase().includes('reward') || (log.description && typeof log.description === 'string' && log.description.includes('reward'))) {
+            return log.description || log.action;
+        }
+        
+        return log.description || log.action || "N/A";
+    };
+
+    // Get any additional details that should be displayed
+    const getAdditionalDetails = (log) => {
+        const details = [];
+        
+        // For orders, show financial details with exact 10% calculation
+        if (log.action?.toLowerCase().includes('order') || log.order_id) {
+            const totalAmount = parseFloat(log.total_amount || 0);
+            // Ensure exactly 10% calculation for rewards
+            const rewardsAmount = totalAmount * 0.1;
+            
+            details.push(
+                <div key="order-total"><Badge bg="info" className="me-1">Total</Badge> ₹{totalAmount.toFixed(2)}</div>
+            );
+            
+            if (log.user_balance !== undefined) {
+                details.push(
+                    <div key="user-balance"><Badge bg="info" className="me-1">Wallet Balance</Badge> ₹{parseFloat(log.user_balance).toFixed(2)}</div>
+                );
+            }
+            
+            details.push(
+                <div key="rewards"><Badge bg="success" className="me-1">Reward Points</Badge> ₹{rewardsAmount.toFixed(2)} (10% of total)</div>
+            );
+        }
+        
+        // For reward conversions, show details from description
+        if (log.action?.toLowerCase().includes('reward') || (log.description && typeof log.description === 'string' && log.description.includes('reward'))) {
+            // If there's JSON in the description, try to extract it
+            if (typeof log.description === 'string' && log.description.startsWith('{')) {
+                try {
+                    const descData = JSON.parse(log.description);
+                    if (descData.wallet !== undefined) {
+                        details.push(
+                            <div key="wallet-balance"><Badge bg="info" className="me-1">Wallet Balance</Badge> ₹{parseFloat(descData.wallet).toFixed(2)}</div>
+                        );
+                    }
+                    if (descData.points !== undefined) {
+                        details.push(
+                            <div key="reward-points"><Badge bg="info" className="me-1">Reward Points</Badge> {descData.points}</div>
+                        );
+                    }
+                } catch (e) {
+                    console.error("Error parsing description JSON:", e);
+                }
+            }
+        }
+        
+        // For any other logs with JSON description
+        if (typeof log.description === 'string' && log.description.startsWith('{')) {
+            try {
+                const descData = JSON.parse(log.description);
+                Object.entries(descData).forEach(([key, value], index) => {
+                    // Skip keys we've already handled or don't want to show
+                    if (['wallet_balance', 'wallet', 'points', 'action', 'user_role', 'user_name', 'user_id'].includes(key.toLowerCase())) {
+                        return;
+                    }
+                    
+                    details.push(
+                        <div key={`detail-${index}`}><Badge bg="info" className="me-1">{key}</Badge> {value}</div>
+                    );
+                });
+            } catch (e) {
+                console.error("Error parsing description JSON:", e);
+            }
+        }
+        
+        return details.length > 0 ? <div className="mt-2">{details}</div> : null;
+    };
+
     // Initial loading state before we verify the user role
     if (!user) {
         return (
@@ -221,7 +336,7 @@ const AdminDashboard = () => {
                     <Col md={9}>
                         <Tab.Content>
                             <Tab.Pane eventKey="overview">
-                                <Row className="mb-4">
+                                {/* <Row className="mb-4">
                                     <Col md={6} lg={3} className="mb-3">
                                         <Card className="text-center h-100 shadow-sm">
                                             <Card.Body>
@@ -254,15 +369,17 @@ const AdminDashboard = () => {
                                             </Card.Body>
                                         </Card>
                                     </Col>
-                                </Row>
+                                </Row> */}
                                 
                                 <h4 className="mb-3">Recent Activity</h4>
                                 <Table responsive striped hover>
                                     <thead>
                                         <tr>
                                             <th>Time</th>
-                                            <th>User</th>
+                                            <th>Name</th>
                                             <th>Action</th>
+                                            {/* <th>Role</th> */}
+                                            <th>Details</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -271,11 +388,21 @@ const AdminDashboard = () => {
                                                 <td>{new Date(log.created_at).toLocaleString()}</td>
                                                 <td>{log.user_name}</td>
                                                 <td>{log.action}</td>
+                                                {/* <td>
+                                                    <Badge bg={
+                                                        log.user_role === 'admin' ? 'danger' :
+                                                        log.user_role === 'merchant' ? 'primary' : 'success'
+                                                    }>
+                                                        {log.user_role === 'admin' ? 'Admin' : 
+                                                         log.user_role === 'merchant' ? 'Merchant' : 'User'}
+                                                    </Badge>
+                                                </td> */}
+                                                <td>{formatLogInfo(log)}</td>
                                             </tr>
                                         ))}
                                         {logs.length === 0 && (
                                             <tr>
-                                                <td colSpan="3" className="text-center">No recent activity</td>
+                                                <td colSpan="5" className="text-center">No recent activity</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -298,9 +425,10 @@ const AdminDashboard = () => {
                                     <thead>
                                         <tr>
                                             <th>Time</th>
-                                            <th>User</th>
-                                            <th>Email</th>
+                                            <th>Name</th>
+                                            <th>Action</th>
                                             <th>Role</th>
+                                            <th>Details</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -308,20 +436,22 @@ const AdminDashboard = () => {
                                             <tr key={login.log_id}>
                                                 <td>{new Date(login.created_at).toLocaleString()}</td>
                                                 <td>{login.user_name}</td>
-                                                <td>{login.user_email}</td>
+                                                <td>{login.action}</td>
                                                 <td>
                                                     <Badge bg={
                                                         login.user_role === 'admin' ? 'danger' :
                                                         login.user_role === 'merchant' ? 'primary' : 'success'
                                                     }>
-                                                        {login.user_role}
+                                                        {login.user_role === 'admin' ? 'Admin' : 
+                                                         login.user_role === 'merchant' ? 'Merchant' : 'User'}
                                                     </Badge>
                                                 </td>
+                                                <td>{formatLogInfo(login)}</td>
                                             </tr>
                                         ))}
                                         {userLogins.length === 0 && (
                                             <tr>
-                                                <td colSpan="4" className="text-center">No login activity found</td>
+                                                <td colSpan="5" className="text-center">No login activity found</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -338,6 +468,7 @@ const AdminDashboard = () => {
                                             <th>Amount</th>
                                             <th>Status</th>
                                             <th>Date</th>
+                                            <th>Details</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -356,11 +487,12 @@ const AdminDashboard = () => {
                                                     </Badge>
                                                 </td>
                                                 <td>{new Date(order.created_at).toLocaleString()}</td>
+                                                <td>{formatLogInfo({...order, action: 'order_created'})}</td>
                                             </tr>
                                         ))}
                                         {orders.length === 0 && (
                                             <tr>
-                                                <td colSpan="5" className="text-center">No orders found</td>
+                                                <td colSpan="6" className="text-center">No orders found</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -369,6 +501,7 @@ const AdminDashboard = () => {
 
                             <Tab.Pane eventKey="systemLogs">
                                 <h4 className="mb-3">System Logs</h4>
+                                
                                 <Form.Group className="mb-3">
                                     <Form.Label>Filter by Date</Form.Label>
                                     <Form.Control
@@ -384,7 +517,7 @@ const AdminDashboard = () => {
                                             <th>Time</th>
                                             <th>User</th>
                                             <th>Action</th>
-                                            <th>Description</th>
+                                            {/* <th>Details</th> */}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -393,12 +526,22 @@ const AdminDashboard = () => {
                                                 <td>{new Date(log.created_at).toLocaleString()}</td>
                                                 <td>{log.user_name}</td>
                                                 <td>{log.action}</td>
-                                                <td>{log.description}</td>
+                                                {/* <td>
+                                                    <Badge bg={
+                                                        log.user_role === 'admin' ? 'danger' :
+                                                        log.user_role === 'merchant' ? 'primary' : 'success'
+                                                    }>
+                                                        {log.user_role === 'admin' ? 'Admin' : 
+                                                         log.user_role === 'merchant' ? 'Merchant' : 'User'}
+                                                    </Badge>
+                                                </td> */}
+                                                {/* <td>{new Date(log.created_at).toLocaleString()}</td> */}
+                                                {/* <td>{formatLogInfo}</td> */}
                                             </tr>
                                         ))}
                                         {logs.length === 0 && (
                                             <tr>
-                                                <td colSpan="4" className="text-center">No logs found</td>
+                                                <td colSpan="5" className="text-center">No logs found</td>
                                             </tr>
                                         )}
                                     </tbody>

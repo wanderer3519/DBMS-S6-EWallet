@@ -20,7 +20,7 @@ def populate_database():
                 password_hash="hashed_password_1",  # In production, use proper hashing
                 role=UserRole.admin,
                 status=UserStatus.active,
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             ),
             Users(
                 email="merchant@example.com",
@@ -28,7 +28,7 @@ def populate_database():
                 password_hash="hashed_password_2",
                 role=UserRole.merchant,
                 status=UserStatus.active,
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             ),
             Users(
                 email="customer@example.com",
@@ -36,7 +36,7 @@ def populate_database():
                 password_hash="hashed_password_3",
                 role=UserRole.customer,
                 status=UserStatus.active,
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             )
         ]
         
@@ -50,7 +50,7 @@ def populate_database():
                 user_id=user.user_id,
                 account_type=AccountType.user,
                 balance=1000.0,  # Initial balance
-                created_at=datetime.utcnow()
+                created_at=datetime.now()
             )
             db.add(account)
         db.commit()
@@ -65,8 +65,8 @@ def populate_database():
                 stock=50,
                 image_url="/uploads/iphone14.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             ),
             Product(
                 name="Samsung Galaxy S23",
@@ -76,8 +76,8 @@ def populate_database():
                 stock=45,
                 image_url="/uploads/galaxy-s23.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             ),
             Product(
                 name="Sony WH-1000XM4",
@@ -87,8 +87,8 @@ def populate_database():
                 stock=30,
                 image_url="/uploads/sony-headphones.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             ),
             Product(
                 name="MacBook Air M2",
@@ -98,8 +98,8 @@ def populate_database():
                 stock=25,
                 image_url="/uploads/macbook-air.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             ),
             Product(
                 name="iPad Air 5th Gen",
@@ -109,8 +109,8 @@ def populate_database():
                 stock=35,
                 image_url="/uploads/ipad-air.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             ),
             Product(
                 name="OnePlus 11",
@@ -120,8 +120,8 @@ def populate_database():
                 stock=40,
                 image_url="/uploads/oneplus11.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             ),
             Product(
                 name="Dell XPS 13",
@@ -131,8 +131,8 @@ def populate_database():
                 stock=20,
                 image_url="/uploads/dell-xps13.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             ),
             Product(
                 name="Apple Watch Series 8",
@@ -142,8 +142,8 @@ def populate_database():
                 stock=30,
                 image_url="/uploads/apple-watch.jpg",
                 status=ProductStatus.active,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                created_at=datetime.now(),
+                updated_at=datetime.now()
             )
         ]
         

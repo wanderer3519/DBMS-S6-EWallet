@@ -138,24 +138,21 @@ const MyOrders = () => {
             });
         }
         
-        // Apply sorting
         switch (sortOption) {
             case 'newest':
-                result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
                 break;
             case 'oldest':
-                result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                result.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
                 break;
             case 'highest':
-                result.sort((a, b) => b.total_amount - a.total_amount);
+                result.sort((a, b) => parseFloat(b.total_amount || 0) - parseFloat(a.total_amount || 0));
                 break;
             case 'lowest':
-                result.sort((a, b) => a.total_amount - b.total_amount);
-                break;
-            default:
+                result.sort((a, b) => parseFloat(a.total_amount || 0) - parseFloat(b.total_amount || 0));
                 break;
         }
-        
+
         setFilteredOrders(result);
     }, [orders, sortOption, paymentFilter, statusFilter, searchTerm, dateRange]);
 

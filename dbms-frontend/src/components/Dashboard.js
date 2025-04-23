@@ -186,7 +186,7 @@ const Dashboard = () => {
     };
 
     const handleProductClick = (productId) => {
-        navigate(`/product/${productId}`);
+        navigate(`/products/${productId}`);
     };
 
     const handleCategorySelect = (category) => {
@@ -314,7 +314,7 @@ const Dashboard = () => {
                             )}
                             <div className="category-tag">{product.business_category}</div>
                         </div>
-                        <div className="product-details">
+                        <div className="product-details d-flex flex-column">
                             <h3>{product.name}</h3>
                             <p className="product-description">{product.description}</p>
                             <div className="product-price-container">
