@@ -104,7 +104,7 @@ function App() {
                 <MyOrders />
               </PrivateRoute>
             } />
-            <Route path="/profile" element={
+            {/* <Route path="/profile" element={
               <PrivateRoute>
                 <UserProfile />
               </PrivateRoute>
@@ -113,7 +113,7 @@ function App() {
               <PrivateRoute>
                 <RewardsConversion />
               </PrivateRoute>
-            } />
+            } /> */}
 
             {/* Protected Merchant Routes */}
             <Route path="/merchant" element={

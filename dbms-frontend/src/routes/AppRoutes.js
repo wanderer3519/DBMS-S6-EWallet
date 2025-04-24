@@ -9,8 +9,6 @@ import Dashboard from '../components/Dashboard';
 import MerchantDashboard from '../components/MerchantDashboard';
 import AdminDashboard from '../components/AdminDashboard';
 import NoPage from '../components/NoPage';
-import Profile from '../components/Profile';
-import UserProfile from '../components/UserProfile';
 
 const PrivateRoute = ({ children, roles }) => {
   const { isAuthenticated, user } = useAuth();

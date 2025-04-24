@@ -70,7 +70,7 @@ def create_merchant_if_not_exists(db: Session):
                 password_hash=get_password_hash("merchant123"),
                 role=UserRole.merchant,
                 status=UserStatus.active,
-                created_at=datetime.now()
+                created_at=datetime.utcnow()
             )
             db.add(merchant)
             db.commit()
@@ -87,7 +87,7 @@ def create_merchant_if_not_exists(db: Session):
                 user_id=merchant.user_id,
                 business_name="Sample Electronics Store",
                 business_category="Electronics",
-                created_at=datetime.now()
+                created_at=datetime.utcnow()
             )
             db.add(merchant_profile)
             db.commit()
@@ -137,8 +137,8 @@ def populate_products():
                         business_category=product_data["business_category"],
                         image_url=product_data["image_url"],
                         status=ProductStatus.active,
-                        created_at=datetime.now(),
-                        updated_at=datetime.now()
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow()
                     )
                     db.add(product)
                     db.commit()
