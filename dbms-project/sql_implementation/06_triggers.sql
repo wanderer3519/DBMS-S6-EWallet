@@ -9,7 +9,7 @@ BEGIN
     -- Update status based on stock level
     IF NEW.stock <= 0 THEN
         NEW.status = 'out_of_stock';
-    ELSIF NEW.status = 'out_of_stock' AND NEW.stock > 0 THEN
+    ELSE IF NEW.status = 'out_of_stock' AND NEW.stock > 0 THEN
         NEW.status = 'active';
     END IF;
     
@@ -256,4 +256,195 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER log_transaction_status_changes
 AFTER UPDATE OF status ON transactions
 FOR EACH ROW
-EXECUTE FUNCTION log_transaction_status_changes_trigger(); 
+EXECUTE FUNCTION log_transaction_status_changes_trigger();
+
+-- Trigger to reduce stock after ordering a product
+CREATE OR REPLACE FUNCTION reduce_stock_after_order_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Reduce stock for the ordered product
+    UPDATE products
+    SET stock = stock - NEW.quantity
+    WHERE product_id = NEW.product_id;
+
+    -- Ensure stock does not go negative
+    IF (SELECT stock FROM products WHERE product_id = NEW.product_id) < 0 THEN
+        RAISE EXCEPTION 'Stock cannot be negative for product ID %', NEW.product_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER reduce_stock_after_order
+AFTER INSERT ON orders
+FOR EACH ROW
+EXECUTE FUNCTION reduce_stock_after_order_trigger();
+
+-- 
+-- Trigger to increase reward points after a transaction
+CREATE OR REPLACE FUNCTION increase_reward_points_trigger()
+RETURNS TRIGGER AS $$
+DECLARE
+    points_to_award INTEGER;
+BEGIN
+    -- Only award points for completed purchase transactions
+    IF NEW.transaction_type = 'purchase' AND NEW.status = 'completed' THEN
+        -- Calculate points (1 point per 10 currency units spent)
+        points_to_award := FLOOR(NEW.amount / 10);
+
+        -- Award points if above zero
+        IF points_to_award > 0 THEN
+            INSERT INTO reward_points (
+                transaction_id, user_id, points, status, created_at
+            )
+            VALUES (
+                NEW.transaction_id, NEW.user_id, points_to_award, 'earned', CURRENT_TIMESTAMP
+            );
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER increase_reward_points
+AFTER INSERT OR UPDATE ON transactions
+FOR EACH ROW
+EXECUTE FUNCTION increase_reward_points_trigger();
+
+-- Trigger to log checkout events
+CREATE OR REPLACE FUNCTION log_checkout_event_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO logs (
+        user_id, action, description, created_at
+    )
+    VALUES (
+        NEW.user_id,
+        'checkout',
+        CONCAT('Checkout completed. Total: ₹', NEW.total_amount, ', Wallet: ₹', NEW.wallet_amount, ', Rewards: ₹', NEW.reward_discount, ', Payment Method: ', NEW.payment_method),
+        CURRENT_TIMESTAMP
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER log_checkout_event
+AFTER INSERT ON orders
+FOR EACH ROW
+EXECUTE FUNCTION log_checkout_event_trigger();
+
+-- Trigger to update stock levels after checkout
+CREATE OR REPLACE FUNCTION update_stock_after_checkout_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE products
+    SET stock = stock - NEW.quantity
+    WHERE product_id = NEW.product_id;
+
+    -- Ensure stock does not go negative
+    IF (SELECT stock FROM products WHERE product_id = NEW.product_id) < 0 THEN
+        RAISE EXCEPTION 'Stock cannot be negative for product ID %', NEW.product_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_stock_after_checkout
+AFTER INSERT ON order_items
+FOR EACH ROW
+EXECUTE FUNCTION update_stock_after_checkout_trigger();
+
+-- Trigger to award reward points after checkout
+CREATE OR REPLACE FUNCTION award_reward_points_after_checkout_trigger()
+RETURNS TRIGGER AS $$
+DECLARE
+    points_to_award INTEGER;
+BEGIN
+    -- Calculate points (5% of total amount before discounts)
+    points_to_award := FLOOR(NEW.total_amount * 0.05);
+
+    -- Award points if above zero
+    IF points_to_award > 0 THEN
+        INSERT INTO reward_points (
+            transaction_id, user_id, points, status, created_at
+        )
+        VALUES (
+            NEW.order_id, NEW.user_id, points_to_award, 'earned', CURRENT_TIMESTAMP
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER award_reward_points_after_checkout
+AFTER INSERT ON orders
+FOR EACH ROW
+EXECUTE FUNCTION award_reward_points_after_checkout_trigger();
+
+-- Trigger to enforce stock levels during checkout
+CREATE OR REPLACE FUNCTION enforce_stock_levels_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if enough stock is available
+    IF (SELECT stock FROM products WHERE product_id = NEW.product_id) < NEW.quantity THEN
+        RAISE EXCEPTION 'Not enough stock available for product ID %', NEW.product_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER enforce_stock_levels
+BEFORE INSERT ON order_items
+FOR EACH ROW
+EXECUTE FUNCTION enforce_stock_levels_trigger();
+
+-- Trigger to calculate reward points after checkout
+CREATE OR REPLACE FUNCTION calculate_reward_points_trigger()
+RETURNS TRIGGER AS $$
+DECLARE
+    points_to_award INTEGER;
+BEGIN
+    -- Calculate points (5% of total amount before discounts)
+    points_to_award := FLOOR(NEW.total_amount * 0.05);
+
+    -- Award points if above zero
+    IF points_to_award > 0 THEN
+        INSERT INTO reward_points (
+            transaction_id, user_id, points, status, created_at
+        )
+        VALUES (
+            NEW.order_id, NEW.user_id, points_to_award, 'earned', CURRENT_TIMESTAMP
+        );
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER calculate_reward_points
+AFTER INSERT ON orders
+FOR EACH ROW
+EXECUTE FUNCTION calculate_reward_points_trigger();
+
+-- Trigger to update product stock after an order
+CREATE OR REPLACE FUNCTION update_product_stock_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Reduce stock for the ordered product
+    UPDATE products
+    SET stock = stock - NEW.quantity
+    WHERE product_id = NEW.product_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_product_stock
+AFTER INSERT ON order_items
+FOR EACH ROW
+EXECUTE FUNCTION update_product_stock_trigger();

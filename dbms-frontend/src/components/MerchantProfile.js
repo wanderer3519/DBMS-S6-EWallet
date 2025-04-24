@@ -21,6 +21,8 @@ const MerchantProfile = () => {
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState([]);
   const navigate = useNavigate();
+  const [merchantCategories, setMerchantCategories] = useState([]);
+
 
   useEffect(() => {
     fetchMerchantProfile();
@@ -62,8 +64,20 @@ const MerchantProfile = () => {
       });
 
       setStats(response.data);
+      console.log('Stats Response:', response.data);
+
+      // Fetch all categories the merchant has added products to
+      const categoriesResponse = await axios.get('http://localhost:8000/products/categories', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      setMerchantCategories(categoriesResponse.data.categories);
+      console.log('Categories Response:', categoriesResponse.data);
     } catch (err) {
-      console.error('Error fetching merchant stats:', err);
+      console.error('Error fetching merchant stats or categories:', err);
     }
   };
 
@@ -141,7 +155,7 @@ const MerchantProfile = () => {
       <div className="profile-header">
         <div className="header-content">
           <h1>{merchantData.business_name}</h1>
-          <p className="business-category">{merchantData.business_category}</p>
+          {/* <p className="business-category">{merchantData.business_category}</p> */}
         </div>
         <div className="header-actions">
           {!isEditing && (
@@ -161,16 +175,16 @@ const MerchantProfile = () => {
         <div className="success-message">{successMessage}</div>
       )}
 
-      <div className="stats-grid">
+      {/* <div className="stats-grid">
         <div className="stat-card">
           <h3>Total Products</h3>
-          <p className="stat-value">{stats.totalProducts}</p>
+          <p className="stat-value">{stats?.totalProducts ?? 'N/A'}</p>
         </div>
         <div className="stat-card">
           <h3>Active Listings</h3>
-          <p className="stat-value">{stats.activeListings}</p>
+          <p className="stat-value">{stats?.activeListings ?? 'N/A'}</p>
         </div>
-      </div>
+      </div> */}
 
       {showLogs ? (
         <div className="logs-section">
@@ -215,15 +229,17 @@ const MerchantProfile = () => {
                     required
                   />
                 </div>
-                <div className="form-group">
+                {/* <div className="form-group">
                   <label>Business Category</label>
                   <input
                     type="text"
                     value={editForm.business_category}
-                    onChange={(e) => setEditForm({...editForm, business_category: e.target.value})}
-                    required
+                    onChange={(e) => setEditForm({ ...editForm, business_category: e.target.value })}
+                    placeholder="Enter new category or existing"
                   />
-                </div>
+                  <small className="helper-text">Existing: {merchantCategories.join(', ')}</small>
+                </div> */}
+
                 <div className="form-group">
                   <label>Contact Number</label>
                   <input
@@ -249,10 +265,10 @@ const MerchantProfile = () => {
                     <label>Business Name</label>
                     <p>{merchantData.business_name}</p>
                   </div>
-                  <div className="detail-item">
+                  {/* <div className="detail-item">
                     <label>Business Category</label>
                     <p>{merchantData.business_category}</p>
-                  </div>
+                  </div> */}
                   <div className="detail-item">
                     <label>Merchant ID</label>
                     <p>{merchantData.merchant_id}</p>
@@ -293,4 +309,4 @@ const MerchantProfile = () => {
   );
 };
 
-export default MerchantProfile; 
+export default MerchantProfile;

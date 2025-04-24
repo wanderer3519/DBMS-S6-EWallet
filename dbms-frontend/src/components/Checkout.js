@@ -253,21 +253,23 @@ const Checkout = () => {
                 <div className="order-summary">
                     <h2>Order Summary</h2>
                     {cartItems.length > 0 ? (
-                        cartItems.map((item) => (
-                            <div key={item.cart_item_id} className="checkout-item">
-                                <img 
-                                    src={item.image_url || 'https://via.placeholder.com/100'} 
-                                    alt={item.name} 
-                                    className="checkout-item-image" 
-                                />
-                                <div className="checkout-item-details">
-                                    <h3>{item.name}</h3>
-                                    <p>Quantity: {item.quantity}</p>
-                                    <p>Price: ₹{item.price}</p>
-                                    <p>Subtotal: ₹{(item.price * item.quantity).toFixed(2)}</p>
-                                </div>
-                            </div>
-                        ))
+                        <div className="checkout-items-grid">
+                            {cartItems.map((item) => (
+                                <div key={item.cart_item_id} className="checkout-item">
+                                    <img 
+                                        src={item.image_url || 'https://via.placeholder.com/100'} 
+                                        alt={item.name} 
+                                        className="checkout-item-image" 
+                                    />
+                                    <div className="checkout-item-details">
+                                        <h3>{item.name}</h3>
+                                        <p>Quantity: {item.quantity}</p>
+                                        <p>Price: ₹{item.price}</p>
+                                        <p>Subtotal: ₹{(item.price * item.quantity).toFixed(2)}</p>
+                                    </div>
+                                </div>      
+                            ))}
+                        </div>
                     ) : (
                         <p>No items in your cart</p>
                     )}
@@ -424,19 +426,19 @@ const Checkout = () => {
                         </div>
                     )}
 
-                    {/* <div className="reward-points-info">
+                    <div className="reward-points-info">
                         <h3>🎁 Reward Points:</h3>
                         {paymentMethod !== 'cod' ? (
                             <>
                                 <p>You will earn <strong>{estimatedRewardPoints} points</strong> on this purchase when using any mode of payment except Cash on Delivery.</p>
-                                <p className="auto-conversion-note">
+                                {/* <p className="auto-conversion-note">
                                     <strong>Automatic Conversion:</strong> These points (worth ₹{(estimatedRewardPoints * 0.1).toFixed(2)}) will be automatically added to your E-Wallet balance!
-                                </p>
+                                </p> */}
                             </>
                         ) : (
                             <p>No reward points will be earned with Cash on Delivery.</p>
                         )}
-                    </div> */}
+                    </div>
 
                     <button 
                         className="checkout-button"
