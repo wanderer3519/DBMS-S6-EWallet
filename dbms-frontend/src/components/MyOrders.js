@@ -40,6 +40,8 @@ const MyOrders = () => {
                     'Content-Type': 'application/json'
                 }
             });
+
+            console.log('Fetched orders:', response.data);
             
             // Initially sort orders by date (newest first)
             const sortedOrders = response.data.sort((a, b) => 
@@ -138,24 +140,22 @@ const MyOrders = () => {
             });
         }
         
-        // Apply sorting
         switch (sortOption) {
-            case 'newest':
+
+            case 'oldest':
                 result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
                 break;
-            case 'oldest':
+            case 'newest':
                 result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
                 break;
             case 'highest':
-                result.sort((a, b) => b.total_amount - a.total_amount);
+                result.sort((a, b) => parseFloat(b.total_amount || 0) - parseFloat(a.total_amount || 0));
                 break;
             case 'lowest':
-                result.sort((a, b) => a.total_amount - b.total_amount);
-                break;
-            default:
+                result.sort((a, b) => parseFloat(a.total_amount || 0) - parseFloat(b.total_amount || 0));
                 break;
         }
-        
+
         setFilteredOrders(result);
     }, [orders, sortOption, paymentFilter, statusFilter, searchTerm, dateRange]);
 
@@ -164,21 +164,28 @@ const MyOrders = () => {
             if (!order || !order.created_at) {
                 return 'Date unavailable';
             }
-            
-            // First check if there's a readable date in localStorage
-            // Only attempt to retrieve from localStorage if order_id exists
+    
             const orderId = order.order_id;
-            let readableDate = null;
-            
-            if (orderId) {
-                readableDate = localStorage.getItem(`order_${orderId}_readable_date`);
-            }
-            
+            let readableDate = orderId ? localStorage.getItem(`order_${orderId}_readable_date`) : null;
+    
             if (readableDate) {
                 return readableDate;
             }
-            
-            // If not, format the ISO date string in the same format as the Checkout page
+    
+            let date;
+    
+            // If created_at is a Firestore Timestamp (has toDate), convert it
+            if (order.created_at.toDate) {
+                date = order.created_at.toDate();
+            } else {
+                date = new Date(order.created_at);
+            }
+    
+            if (isNaN(date.getTime())) {
+                console.warn('Invalid Date detected:', order.created_at);
+                return 'Invalid Date';
+            }
+    
             const options = { 
                 year: 'numeric', 
                 month: 'long', 
@@ -187,20 +194,14 @@ const MyOrders = () => {
                 minute: '2-digit',
                 hour12: true
             };
-            
-            const date = new Date(order.created_at);
-            // Check if date is valid before formatting
-            if (isNaN(date.getTime())) {
-                return 'Invalid Date';
-            }
-            
+    
             return date.toLocaleString('en-IN', options);
         } catch (error) {
             console.error('Error formatting date:', error);
             return 'Invalid Date';
         }
     };
-
+    
     const getStatusBadgeClass = (status) => {
         switch(status.toLowerCase()) {
             case 'pending':
@@ -228,8 +229,13 @@ const MyOrders = () => {
         }).format(amount);
     };
 
+    // Get payment method icon
     const getPaymentMethodIcon = (method) => {
-        switch(method?.toLowerCase()) {
+        if (typeof method !== 'string') {
+            method = method.payment_method || 'wallet';
+        }
+        
+        switch(method.toLowerCase()) {
             case 'card':
                 return '💳';
             case 'upi':
@@ -245,18 +251,38 @@ const MyOrders = () => {
             case 'emi':
                 return '📅';
             default:
-                return '💰';
+                return '📱'; // Default to wallet icon
         }
     };
 
+    // Get formatted payment method name
     const getPaymentMethodName = (method) => {
-        switch(method?.toLowerCase()) {
+        if (typeof method !== 'string') {
+            // It's an order object
+            const order = method;
+            const orderId = order.order_id;
+            
+            // Try to get from localStorage first
+            if (orderId) {
+                const storedMethod = localStorage.getItem(`order_${orderId}_payment_method`);
+                if (storedMethod) {
+                    method = storedMethod;
+                } else {
+                    method = order.payment_method || 'wallet';
+                }
+            } else {
+                method = order.payment_method || 'wallet';
+            }
+        }
+        
+        // Format method string
+        switch(method.toLowerCase()) {
             case 'card':
                 return 'Credit/Debit Card';
             case 'upi':
-                return 'UPI Payment';
+                return 'UPI/Net Banking';
             case 'wallet':
-                return 'Wallet Balance';
+                return 'E-Wallet Balance';
             case 'cod':
                 return 'Cash on Delivery';
             case 'paypal':
@@ -264,9 +290,9 @@ const MyOrders = () => {
             case 'netbanking':
                 return 'Net Banking';
             case 'emi':
-                return 'EMI';
+                return 'EMI Payment';
             default:
-                return method || 'Wallet';
+                return method || 'E-Wallet Balance';
         }
     };
 
@@ -361,8 +387,8 @@ const MyOrders = () => {
                                     value={sortOption}
                                     onChange={(e) => setSortOption(e.target.value)}
                                 >
-                                    <option value="newest">Newest First</option>
-                                    <option value="oldest">Oldest First</option>
+                                    <option value="oldest">Newest First</option>
+                                    <option value="newest">Oldest First</option>
                                     <option value="highest">Highest Amount</option>
                                     <option value="lowest">Lowest Amount</option>
                                 </select>
@@ -475,9 +501,9 @@ const MyOrders = () => {
                                         <div className="payment-info">
                                             <div className="payment-method">
                                                 <span className="payment-icon">
-                                                    {getPaymentMethodIcon(order.payment_method)}
+                                                    {getPaymentMethodIcon(order)}
                                                 </span>
-                                                <span className="method-name">{getPaymentMethodName(order.payment_method)}</span>
+                                                <span className="method-name">{getPaymentMethodName(order)}</span>
                                             </div>
                                             
                                             <div className="amount-details">
@@ -541,4 +567,4 @@ const MyOrders = () => {
     );
 };
 
-export default MyOrders; 
+export default MyOrders;

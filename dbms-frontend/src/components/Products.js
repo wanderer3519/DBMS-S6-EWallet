@@ -196,7 +196,7 @@ const Products = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="product-details">
+                            <div className="product-details d-flex flex-column">
                                 <h3>{product.name}</h3>
                                 <p className="product-description">{product.description}</p>
                                 <div className="product-price-container">

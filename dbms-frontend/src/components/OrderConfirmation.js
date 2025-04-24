@@ -35,29 +35,72 @@ const OrderConfirmation = () => {
         }
     }, [orderId]);
 
-    const formatDate = (dateString) => {
+
+
+    // Get formatted payment method name
+    const getFormattedPaymentMethod = (method) => {
+        if (!method) {
+            return 'E-Wallet Balance';
+        }
+        
+        switch(method.toLowerCase()) {
+            case 'card':
+                return 'Credit/Debit Card';
+            case 'upi':
+                return 'UPI/Net Banking';
+            case 'wallet':
+                return 'E-Wallet Balance';
+            case 'cod':
+                return 'Cash on Delivery';
+            case 'paypal':
+                return 'PayPal';
+            case 'netbanking':
+                return 'Net Banking';
+            case 'emi':
+                return 'EMI Payment';
+            default:
+                return method;
+        }
+    };
+
+    const formatDate = (dateInput, type = 'full') => {
         try {
-            // If we have a readable date string, use it directly
-            if (readableOrderDate) {
-                return readableOrderDate;
+            if (!dateInput) return 'Date unavailable';
+    
+            const date = new Date(dateInput);
+            if (isNaN(date.getTime())) return 'Invalid Date';
+    
+            if (type === 'date') {
+                return date.toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                });
+            } else if (type === 'time') {
+                console.log('Formatting time:', date);
+                return date.toLocaleTimeString('en-IN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true,
+                });
             }
-            
-            // Otherwise format the ISO date
-            const options = { 
-                year: 'numeric', 
-                month: 'long', 
+    
+            // Full date and time
+            return date.toLocaleString('en-IN', {
+                year: 'numeric',
+                month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-            };
-            return new Date(dateString).toLocaleString('en-IN', options);
-        } catch (error) {
-            console.error('Error formatting date:', error);
-            return 'Date unavailable';
+                hour12: true,
+            });
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return 'Invalid Date';
         }
     };
+    
+      
 
     const fetchOrderDetails = async () => {
         try {
@@ -113,7 +156,8 @@ const OrderConfirmation = () => {
     if (!orderDetails) return <div className="order-confirmation-error">Order not found</div>;
 
     // Use stored payment method if available, otherwise use the one from API
-    const displayPaymentMethod = storedPaymentMethod || orderDetails.payment_method || 'Wallet';
+    const displayPaymentMethod = storedPaymentMethod || orderDetails.payment_method || 'wallet';
+    const formattedPaymentMethod = getFormattedPaymentMethod(displayPaymentMethod);
     
     // Calculate reward points value (1 point = ₹0.1)
     const rewardPointsValue = orderDetails.reward_points_earned > 0 
@@ -128,6 +172,12 @@ const OrderConfirmation = () => {
                     <h1>Order Placed Successfully!</h1>
                     <p className="thank-you">Thank you for your purchase.</p>
                 </div>
+                <p className="order-date">
+                    <span className="label">Order Date:</span> {formatDate(orderDate, 'date')}
+                </p>
+                <p className="order-time">
+                    <span className="label">Time:</span> {formatDate(orderDate, 'time')}
+                </p>
 
                 <div className="order-info">
                     <h2>🛍️ Order Details</h2>
@@ -141,7 +191,7 @@ const OrderConfirmation = () => {
                     {/* Payment confirmation message - exact wording as specified */}
                     <div className="payment-confirmation">
                         <p className="payment-success">
-                            Your order has been successfully placed using <strong>{displayPaymentMethod}</strong>.
+                            Your order has been successfully placed using <strong>{formattedPaymentMethod}</strong>.
                         </p>
                     </div>
                     
@@ -218,4 +268,4 @@ const OrderConfirmation = () => {
     );
 };
 
-export default OrderConfirmation; 
+export default OrderConfirmation;

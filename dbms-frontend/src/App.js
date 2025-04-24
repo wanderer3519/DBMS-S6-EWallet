@@ -22,6 +22,7 @@ import MerchantProfile from './components/MerchantProfile';
 import UserProfile from './components/UserProfile';
 import RewardsConversion from './components/RewardsConversion';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import Topup from './components/Topup';
 
 // PrivateRoute component checks if the user is logged in and if they have the correct role to access the route
 const PrivateRoute = ({ children, roles }) => {
@@ -90,12 +91,13 @@ function App() {
               </PrivateRoute>
             } />
             <Route path="/checkout" element={
-              <PrivateRoute>
+              <PrivateRoute allowedRoles={['user']}>
+                {/* <Checkout /> */}  
                 <Checkout />
               </PrivateRoute>
             } />
             <Route path="/order-confirmation/:orderId" element={
-              <PrivateRoute>
+              <PrivateRoute allowedRoles={['user']}>
                 <OrderConfirmation />
               </PrivateRoute>
             } />
@@ -104,16 +106,21 @@ function App() {
                 <MyOrders />
               </PrivateRoute>
             } />
-            {/* <Route path="/profile" element={
+            <Route path="/profile" element={
               <PrivateRoute>
                 <UserProfile />
+              </PrivateRoute>
+            } />
+            <Route path="/top-up" element={
+              <PrivateRoute>
+                <Topup />
               </PrivateRoute>
             } />
             <Route path="/dashboard/conversion" element={
               <PrivateRoute>
                 <RewardsConversion />
               </PrivateRoute>
-            } /> */}
+            } />
 
             {/* Protected Merchant Routes */}
             <Route path="/merchant" element={

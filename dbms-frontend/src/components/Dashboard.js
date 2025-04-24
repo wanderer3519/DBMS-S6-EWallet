@@ -186,7 +186,7 @@ const Dashboard = () => {
     };
 
     const handleProductClick = (productId) => {
-        navigate(`/product/${productId}`);
+        navigate(`/products/${productId}`);
     };
 
     const handleCategorySelect = (category) => {
@@ -261,7 +261,7 @@ const Dashboard = () => {
                     <div className="rewards-info-banner">
                         <span className="info-icon">ℹ️</span>
                         <p>
-                            Reward points (5% of purchase) are now automatically converted to wallet balance after every order!
+                            Reward points (10% of purchase) can be converted to wallet balance after every order!
                         </p>
                     </div>
                 </div>
@@ -278,6 +278,9 @@ const Dashboard = () => {
                     <button className="action-button" onClick={() => navigate('/profile')}>
                         👤 My Profile
                     </button>
+                    {/* <button className="action-button" onClick={() => navigate('/top-up')}>
+                        <i className='fa-solid fa-plus'></i> Add Amount
+                    </button> */}
                 </div>
             </div>
 
@@ -314,7 +317,7 @@ const Dashboard = () => {
                             )}
                             <div className="category-tag">{product.business_category}</div>
                         </div>
-                        <div className="product-details">
+                        <div className="product-details d-flex flex-column">
                             <h3>{product.name}</h3>
                             <p className="product-description">{product.description}</p>
                             <div className="product-price-container">

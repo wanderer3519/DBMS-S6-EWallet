@@ -155,9 +155,17 @@ class OrderCreate(BaseModel):
 
 class OrderResponse(BaseModel):
     order_id: int
+    user_id: int
+    account_id: int
+    wallet_amount: Optional[float]
+    reward_discount: float
     total_amount: float
     status: OrderStatus
     items: List[dict]
+    created_at: datetime
+    updated_at: datetime
+    payment_method: Optional[str] = None
+    reward_points_earned: int
 
     class Config:
         from_attributes = True
@@ -1220,18 +1228,21 @@ async def get_user_orders(
                 ).first()
                 
                 reward_points_earned = reward.points if reward else 0
+                reward_discount = reward_points_earned * 0.1  
             
             result.append({
                 "order_id": order.order_id,
                 "user_id": order.user_id,
                 "account_id": order.account_id,
+                "reward_discount": reward_discount,
+                "wallet_amount": float(order.wallet_amount) if order.wallet_amount else 0.0,
                 "status": order.status,
                 "total_amount": float(order.total_amount),
                 "created_at": order.created_at,
                 "updated_at": order.updated_at,
                 "items": items,
                 "reward_points_earned": reward_points_earned,
-                "payment_method": order.payment_method
+                # "payment_method": order.payment_method 
             })
         
         return result
@@ -1870,6 +1881,10 @@ async def create_merchant_product(
             Merchants.business_category == business_category
         ).first()
         
+        merchant2 = db.query(Merchants).filter(
+            Merchants.user_id == current_user.user_id
+        ).first()
+
         if not merchant:
             # Create a new merchant entry for this business category
             current_time = datetime.now()
@@ -2589,7 +2604,7 @@ async def process_checkout(
         
         # Update account balance if using wallet
         if wallet_amount > 0:
-            account.balance -= wallet_amount
+            account.balance -= Decimal(str(wallet_amount))
         
         # Process reward points redemption if used
         if use_rewards and reward_points:
@@ -2627,6 +2642,8 @@ async def process_checkout(
         )
         db.add(transaction)
         db.flush()  # Flush to get the transaction ID
+        db.commit()
+        db.refresh(transaction)
         
         # Add reward points (5% of total amount) AFTER transaction creation
         earned_points = 0
@@ -2634,16 +2651,17 @@ async def process_checkout(
             earned_points = int(total * 0.05)  # 5% of order total
             if earned_points > 0:
                 reward = RewardPoints(
-                    transaction_id=transaction.transaction_id,  # Use transaction ID instead of order ID
+                    transaction_id=transaction.transaction_id,  # Use transaction ID 
                     user_id=current_user.user_id,
                     points=earned_points,
                     status=RewardStatus.earned,
                     created_at=created_at
                 )
                 db.add(reward)
+                db.commit()
                 
                 # Automatically convert reward points to wallet balance
-                await convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
+                # await convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
         
         # Clear cart
         db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()

@@ -642,20 +642,20 @@ const MerchantDashboard = () => {
 
   return (
     <div className="merchant-dashboard">
-      <div className="dashboard-header">
+      <div className="dashboard-header d-flex justify-content-between align-items-center">
         <h2><i className="fas fa-store"></i> Merchant Dashboard</h2>
         <div className="header-actions">
-          <button className="btn btn-outline" onClick={() => navigate('/merchant/profile')}>
+          <button className="btn btn-outline-primary" onClick={() => navigate('/merchant/profile')}>
             <i className="fas fa-user"></i> Profile
           </button>
-          <button className="btn btn-outline" onClick={handleLogsClick}>
+          <button className="btn btn-outline-secondary" onClick={handleLogsClick}>
             <i className="fas fa-history"></i> Activity Logs
           </button>
         </div>
       </div>
 
       {successMessage && (
-        <div className="success-message">
+        <div className="alert alert-success" role="alert">
           {successMessage}
         </div>
       )}
@@ -735,52 +735,70 @@ const MerchantDashboard = () => {
         </div>
       )}
 
-      <div className="search-section">
-        <div className="search-row">
-          <div className="search-container">
+    <div className="search-section">
+      <div className="search-row">
+        <div className="search-container">
+          <div className="search-input-wrapper">
+            <i className="fas fa-search search-icon"></i>
             <input 
               type="text" 
-              placeholder="Search by product name or category" 
+              className="input-field"
+              placeholder="Search products or categories..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
-            <button onClick={handleSearch} className="search-btn">
-              Search
-            </button>
-            <button onClick={handleResetSearch} className="reset-btn">
-              Reset
-            </button>
+            
+            {searchTerm && (
+              <button 
+                className="clear-search" 
+                onClick={handleResetSearch}
+                aria-label="Clear search"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            )}
           </div>
 
-          <div className="action-buttons">
-            <button className="add-product-btn" onClick={toggleAddProductForm}>
-              <i className="fas fa-plus"></i> {showAddProductForm ? 'Cancel' : 'Add New Product'}
+          <div className="search-actions">
+            <button onClick={handleSearch} className="btn btn-primary">
+              <i className="fas fa-search"></i> Search
             </button>
-            <button className="update-product-btn" onClick={toggleUpdateForm}>
-              <i className="fas fa-edit"></i> {showUpdateForm ? 'Cancel' : 'Update a Product'}
+            <button onClick={handleResetSearch} className="btn btn-secondary">
+              <i className="fas fa-undo"></i> Reset
             </button>
           </div>
         </div>
 
-        <div className="category-filter">
-          <button 
-            className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
-            onClick={() => handleCategorySelect('all')}
-          >
-            All Products
+
+        <div className="action-buttons">
+          <button className="btn btn-blue" onClick={toggleAddProductForm}>
+            <i className="fas fa-plus"></i> {showAddProductForm ? 'Cancel' : 'Add New Product'}
           </button>
-          {categories.map(category => (
-            <button 
-              key={category}
-              className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
-              onClick={() => handleCategorySelect(category)}
-            >
-              {category}
-            </button>
-          ))}
+          <button className="btn btn-outline" onClick={toggleUpdateForm}>
+            <i className="fas fa-edit"></i> {showUpdateForm ? 'Cancel' : 'Update a Product'}
+          </button>
         </div>
       </div>
+
+      <div className="category-filter">
+        <button 
+          className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+          onClick={() => handleCategorySelect('all')}
+        >
+          All Products
+        </button>
+        {categories.map(category => (
+          <button 
+            key={category}
+            className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
+            onClick={() => handleCategorySelect(category)}
+          >
+            {category}
+          </button>
+        ))}
+      </div>
+    </div>
 
       {showAddProductForm && (
         <div className="add-product-form">

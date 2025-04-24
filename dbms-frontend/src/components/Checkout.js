@@ -18,6 +18,9 @@ const Checkout = () => {
     const [useRewards, setUseRewards] = useState(false);
     const [pointsToUse, setPointsToUse] = useState(0);
     const [estimatedRewardPoints, setEstimatedRewardPoints] = useState(0);
+    const [finalAmount, setFinalAmount] = useState(0);
+    const [rewardDiscount, setRewardDiscount] = useState(0);
+    const [walletDiscount, setWalletDiscount] = useState(0);
 
     useEffect(() => {
         fetchCartItems();
@@ -34,6 +37,28 @@ const Checkout = () => {
             setEstimatedRewardPoints(0);
         }
     }, [total, paymentMethod]);
+
+    // Calculate final amount whenever relevant values change
+    useEffect(() => {
+        let discount = 0;
+        let walletAmount = 0;
+
+        // Calculate reward points discount if using rewards
+        if (useRewards && pointsToUse > 0) {
+            discount = pointsToUse * 0.1; // 1 point = ₹0.1
+        }
+        setRewardDiscount(discount);
+
+        // Calculate wallet amount to use
+        if (useWallet && walletBalance > 0) {
+            walletAmount = Math.min(total - discount, walletBalance);
+        }
+        setWalletDiscount(walletAmount);
+
+        // Calculate final amount
+        const calculatedFinalAmount = Math.max(0, total - discount - walletAmount);
+        setFinalAmount(calculatedFinalAmount);
+    }, [total, useRewards, pointsToUse, useWallet, walletBalance]);
 
     const fetchCartItems = async () => {
         try {
@@ -70,12 +95,12 @@ const Checkout = () => {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await axios.get('http://localhost:8000/api/account/balance', {
+            const response = await axios.get('http://localhost:8000/user/balance', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
-            
+            console.log('Wallet balance response:', response.data);
             setWalletBalance(response.data.balance);
         } catch (err) {
             console.error('Error fetching wallet balance:', err);
@@ -112,11 +137,39 @@ const Checkout = () => {
 
     const handlePointsToUseChange = (e) => {
         const value = e.target.value;
+        
+        // Allow empty input or numbers only
         if (value === '' || /^\d+$/.test(value)) {
-            const points = parseInt(value || '0');
+            // Parse the value as integer, defaulting to 0 if empty
+            const points = value === '' ? 0 : parseInt(value);
+            
+            // Ensure we don't exceed available points
             if (points <= rewardPoints) {
                 setPointsToUse(points);
+            } else {
+                // If user tries to enter more points than available, cap it at maximum
+                setPointsToUse(rewardPoints);
             }
+        }
+    };
+    
+    // Handle the "Use Max Points" button
+    const handleUseMaxPoints = () => {
+        setPointsToUse(rewardPoints);
+    };
+
+    // Toggle rewards checkbox
+    const handleToggleRewards = () => {
+        const newUseRewards = !useRewards;
+        setUseRewards(newUseRewards);
+        
+        // If turning off rewards, reset points to use
+        if (!newUseRewards) {
+            setPointsToUse(0);
+        }
+        // If turning on rewards and no points selected yet, default to max
+        else if (newUseRewards && pointsToUse === 0 && rewardPoints > 0) {
+            setPointsToUse(rewardPoints);
         }
     };
 
@@ -148,9 +201,11 @@ const Checkout = () => {
                 second: '2-digit',
                 hour12: true
             });
+
+            const normalizedPaymentMethod = paymentMethod.toLowerCase();
             
             const checkoutData = {
-                payment_method: paymentMethod,
+                payment_method: normalizedPaymentMethod,
                 use_wallet: useWallet,
                 use_rewards: useRewards,
                 reward_points: useRewards ? pointsToUse : 0,
@@ -172,7 +227,7 @@ const Checkout = () => {
                 // Store both ISO and readable datetime formats in localStorage
                 localStorage.setItem(`order_${response.data.order_id}_date`, orderDateTime);
                 localStorage.setItem(`order_${response.data.order_id}_readable_date`, readableDateTime);
-                localStorage.setItem(`order_${response.data.order_id}_payment_method`, paymentMethod || 'Wallet');
+                localStorage.setItem(`order_${response.data.order_id}_payment_method`, normalizedPaymentMethod || 'Wallet');
                 
                 // Navigate to the order confirmation page with the order ID
                 navigate(`/order-confirmation/${response.data.order_id}`);
@@ -218,8 +273,32 @@ const Checkout = () => {
                     )}
                 </div>
                 <div className="checkout-summary">
-                    <h2>Total Amount</h2>
-                    <p className="total-amount">₹{total.toFixed(2)}</p>
+                    <h2>Order Details</h2>
+                    <div className="price-breakdown">
+                        <div className="breakdown-row">
+                            <span>Subtotal:</span>
+                            <span>₹{total.toFixed(2)}</span>
+                        </div>
+                        
+                        {useRewards && rewardDiscount > 0 && (
+                            <div className="breakdown-row discount">
+                                <span>Rewards Discount:</span>
+                                <span>-₹{rewardDiscount.toFixed(2)}</span>
+                            </div>
+                        )}
+                        
+                        {useWallet && walletDiscount > 0 && (
+                            <div className="breakdown-row discount">
+                                <span>Wallet Payment:</span>
+                                <span>-₹{walletDiscount.toFixed(2)}</span>
+                            </div>
+                        )}
+                        
+                        <div className="breakdown-row total">
+                            <span>Final Amount:</span>
+                            <span>₹{finalAmount.toFixed(2)}</span>
+                        </div>
+                    </div>
 
                     <div className="payment-methods">
                         <h3>Please choose your preferred mode of payment:</h3>
@@ -306,27 +385,46 @@ const Checkout = () => {
                                 <input 
                                     type="checkbox" 
                                     checked={useRewards} 
-                                    onChange={() => setUseRewards(!useRewards)} 
+                                    onChange={handleToggleRewards} 
                                 />
                                 Use reward points ({rewardPoints} points, worth ₹{rewardValue.toFixed(2)})
                             </label>
                             {useRewards && (
                                 <div className="points-to-use">
-                                    <label>
-                                        Points to use:
-                                        <input 
-                                            type="text"
-                                            value={pointsToUse}
-                                            onChange={handlePointsToUseChange}
-                                        />
-                                    </label>
+                                    <div className="points-input-container">
+                                        <label>
+                                            Points to use:
+                                            <input 
+                                                type="text"
+                                                value={pointsToUse}
+                                                onChange={handlePointsToUseChange}
+                                            />
+                                        </label>
+                                        <button 
+                                            type="button" 
+                                            className="use-max-points"
+                                            onClick={handleUseMaxPoints}
+                                        >
+                                            Use Max
+                                        </button>
+                                    </div>
                                     <p>Value: ₹{(pointsToUse * 0.1).toFixed(2)}</p>
+                                    <div className="progress-container">
+                                        <div 
+                                            className="progress-bar" 
+                                            style={{ width: `${(pointsToUse / rewardPoints) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                    <div className="progress-labels">
+                                        <span>0</span>
+                                        <span>{rewardPoints}</span>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    <div className="reward-points-info">
+                    {/* <div className="reward-points-info">
                         <h3>🎁 Reward Points:</h3>
                         {paymentMethod !== 'cod' ? (
                             <>
@@ -338,14 +436,14 @@ const Checkout = () => {
                         ) : (
                             <p>No reward points will be earned with Cash on Delivery.</p>
                         )}
-                    </div>
+                    </div> */}
 
                     <button 
                         className="checkout-button"
                         onClick={handleCheckout}
                         disabled={processing || cartItems.length === 0}
                     >
-                        {processing ? 'Processing...' : 'Complete Order'}
+                        {processing ? 'Processing...' : `Complete Order • ₹${finalAmount.toFixed(2)}`}
                     </button>
                 </div>
             </div>
@@ -353,4 +451,4 @@ const Checkout = () => {
     );
 };
 
-export default Checkout; 
+export default Checkout;

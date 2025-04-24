@@ -82,13 +82,13 @@
 }
 
 .btn-success {
-  background: #10b981;
+  background: #8465e3;
   color: white;
   box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .btn-success:hover {
-  background: #059669;
+  background: #284084;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
@@ -205,98 +205,140 @@
 }
 
 /* ====== Search Section ====== */
-.search-section {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: white;
-  padding: 1.75rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  margin-bottom: 2.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+.search-section button {
+  background-color: #108271; /* Bootstrap Blue */
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
 }
+
+.search-section button:hover {
+  background-color: #0056b3; /* Darker Blue */
+}
+
 
 .search-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .search-container {
   display: flex;
-  gap: 0.625rem;
-  flex: 1;
-  max-width: 600px;
-  position: relative;
+  gap: 10px;
+  flex-grow: 1;
 }
 
-.search-container input {
+.search-section {
+  padding: 1.25rem;
+}
+
+.search-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.search-container {
+  max-width: 100%;
+}
+
+
+.input-field {
   flex: 1;
-  padding: 0.875rem 1rem 0.875rem 2.75rem;
-  border: 1px solid #e2e8f0;
+  padding: 10px 14px;
+  border: 2px solid #007bff;
   border-radius: 8px;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  background-color: #f8fafc;
-}
-
-.search-container::before {
-  content: "🔍";
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-.search-container input:focus {
-  border-color: #4f46e5;
+  font-size: 16px;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
-  background-color: white;
 }
 
-.search-btn, .reset-btn {
-  padding: 0.875rem 1.5rem;
-  border: none;
+.btn {
+  padding: 10px 16px;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  font-size: 16px;
   font-weight: 500;
-  white-space: nowrap;
-  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
 }
 
-.search-btn {
-  background: #4f46e5;
-  color: white;
-  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+.btn-blue {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
 }
 
-.search-btn:hover {
-  background: #4338ca;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+.btn-blue:hover {
+  background-color: #0056b3;
 }
 
-.reset-btn {
-  background: #f3f4f6;
-  color: #4b5563;
+.btn-outline {
+  background-color: transparent;
+  color: #007bff;
+  border: 2px solid #007bff;
 }
 
-.reset-btn:hover {
-  background: #e5e7eb;
+.btn-outline:hover {
+  background-color: #007bff;
+  color: #fff;
 }
 
 .action-buttons {
   display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.category-filter {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.category-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #e0f0ff;
+  color: #007bff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.category-btn.active {
+  background: #007bff;
+  color: white;
+}
+
+.category-btn:hover {
+  background: #0056b3;
+  color: white;
+}
+.category-btn:disabled {
+  background: #e0e0e0;
+  color: #a0aec0;
+  cursor: not-allowed;
+}
+.category-btn:disabled:hover {
+  background: #e0e0e0;
+  color: #a0aec0;
+}
+/* ====== Product Actions ====== */ */
+ .action-buttons {
+  display: flex;
   gap: 1rem;
-  margin-left: auto;
+  margin-top: 1rem;
+}
+.action-buttons .btn {
+  flex: 1;
+}
+.action-buttons .btn:first-child {
+  background: #4f46e5;
+  color: white;
 }
 
 .add-product-btn, .update-product-btn {
@@ -313,13 +355,13 @@
 }
 
 .add-product-btn {
-  background: #10b981;
+  background: #4f46e5;
   color: white;
   box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
 .add-product-btn:hover {
-  background: #059669;
+  background: #4f46e5;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
@@ -380,7 +422,7 @@
 }
 
 .add-product-form h3, .update-product-form h3 {
-  color: #1a202c;
+  color: #214080;
   margin-top: 0;
   margin-bottom: 1.5rem;
   font-size: 1.25rem;
@@ -819,19 +861,7 @@
     gap: 1rem;
   }
   
-  .search-section {
-    padding: 1.25rem;
-  }
-  
-  .search-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .search-container {
-    max-width: 100%;
-  }
-  
+
   .profile-content {
     flex-direction: column;
   }
