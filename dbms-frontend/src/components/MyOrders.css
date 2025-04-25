@@ -652,3 +652,54 @@
 .order-card:nth-child(4) { animation-delay: 0.4s; }
 .order-card:nth-child(5) { animation-delay: 0.5s; }
 .order-card:nth-child(n+6) { animation-delay: 0.6s; } 
+
+/* Action buttons container */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Cancel order button */
+.cancel-order-btn {
+    padding: 8px 16px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.cancel-order-btn:hover {
+    background-color: #d32f2f;
+}
+
+/* Modal styles */
+.success-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: #4caf50;
+    padding: 10px;
+}
+
+.success-message i {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.error-message {
+    color: #f44336;
+    background-color: #ffebee;
+    padding: 10px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+/* Status badge for cancelled */
+.status-badge.cancelled {
+    background-color: #f44336;
+}

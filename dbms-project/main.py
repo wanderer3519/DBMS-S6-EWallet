@@ -3045,3 +3045,74 @@ async def get_admin_logs(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+    
+@app.post("/api/orders/{order_id}/cancel")
+async def cancel_order(
+    order_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Get order
+        order = db.query(Order).filter(
+            Order.order_id == order_id,
+            Order.user_id == current_user.user_id
+        ).first()
+        
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found"
+            )
+        
+        # Check if order is already completed or cancelled
+        if order.status in [OrderStatus.completed, OrderStatus.cancelled]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot cancel order with status '{order.status}'"
+            )
+        
+        # Update order status to cancelled
+        order.status = OrderStatus.cancelled
+        
+        # Get user account to refund
+        account = db.query(Account).filter(Account.account_id == order.account_id).first()
+        if not account:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Account not found"
+            )
+        
+        # Refund the amount to wallet
+        refund_amount = float(order.total_amount)
+        account.balance += Decimal(str(refund_amount))
+        
+        # Create refund transaction
+        refund_transaction = Transactions(
+            account_id=account.account_id,
+            transaction_type=TransactionType.refund,
+            amount=Decimal(str(refund_amount)),
+            status=TransactionStatus.completed
+        )
+        db.add(refund_transaction)
+        
+        # Log the cancellation
+        log_entry = Logs(
+            user_id=current_user.user_id,
+            action="order_cancelled",
+            description=f"Order {order_id} cancelled. Amount ₹{refund_amount} refunded to wallet."
+        )
+        db.add(log_entry)
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Order {order_id} has been cancelled and ₹{refund_amount} has been refunded to your wallet.",
+            "refund_amount": refund_amount
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

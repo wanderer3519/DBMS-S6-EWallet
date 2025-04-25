@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './MyOrders.css';
+import { Modal, Button } from 'react-bootstrap';
 
 const MyOrders = () => {
     const [orders, setOrders] = useState([]);
@@ -24,6 +25,11 @@ const MyOrders = () => {
         pendingOrders: 0,
         completedOrders: 0
     });
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [cancellingOrderId, setCancellingOrderId] = useState(null);
+    const [cancelLoading, setCancelLoading] = useState(false);
+    const [cancelError, setCancelError] = useState(null);
+    const [cancelSuccess, setCancelSuccess] = useState(null);
     const navigate = useNavigate();
 
     const fetchOrders = useCallback(async () => {
@@ -309,6 +315,90 @@ const MyOrders = () => {
         setDateRange({ startDate: '', endDate: '' });
     };
 
+    // Add this function to handle order cancellation
+    const cancelOrder = async (orderId) => {
+        setCancelLoading(true);
+        setCancelError(null);
+        setCancelSuccess(null);
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+            
+            const response = await axios.post(
+                `http://localhost:8000/api/orders/${orderId}/cancel`,
+                {},
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            console.log('Cancel order response:', response.data);
+            setCancelSuccess(response.data.message);
+            
+            // Update the orders list - find and update the cancelled order
+            setOrders(orders.map(order => {
+                if (order.order_id === orderId) {
+                    return {
+                        ...order,
+                        status: 'cancelled',
+                        display_status: 'Cancelled'
+                    };
+                }
+                return order;
+            }));
+            
+            // Also update filtered orders
+            setFilteredOrders(filteredOrders.map(order => {
+                if (order.order_id === orderId) {
+                    return {
+                        ...order,
+                        status: 'cancelled',
+                        display_status: 'Cancelled'
+                    };
+                }
+                return order;
+            }));
+            
+            // Close modal after 2 seconds
+            setTimeout(() => {
+                setShowCancelModal(false);
+                setCancellingOrderId(null);
+                fetchOrders(); // Refresh all orders
+            }, 2000);
+            
+        } catch (err) {
+            console.error('Error cancelling order:', err);
+            setCancelError(err.response?.data?.detail || 'Failed to cancel order');
+        } finally {
+            setCancelLoading(false);
+        }
+    };
+
+    const handleCancelClick = (orderId) => {
+        setCancellingOrderId(orderId);
+        setShowCancelModal(true);
+    };
+
+    const handleCancelConfirm = () => {
+        if (cancellingOrderId) {
+            cancelOrder(cancellingOrderId);
+        }
+    };
+
+    const handleCancelModalClose = () => {
+        setShowCancelModal(false);
+        setCancellingOrderId(null);
+        setCancelError(null);
+        setCancelSuccess(null);
+    };
+
     if (loading) return <div className="orders-loading">Loading your orders...</div>;
     if (error) return <div className="orders-error">{error}</div>;
 
@@ -540,12 +630,25 @@ const MyOrders = () => {
                                                 </div>
                                             )}
                                             
-                                            <button 
-                                                className="view-details-btn"
-                                                onClick={() => navigate(`/order-confirmation/${order.order_id}`)}
-                                            >
-                                                View Details
-                                            </button>
+                                            <div className="action-buttons">
+                                                <button 
+                                                    className="view-details-btn"
+                                                    onClick={() => navigate(`/order-confirmation/${order.order_id}`)}
+                                                >
+                                                    View Details
+                                                </button>
+                                                
+                                                {/* Add Cancel button for non-completed/cancelled orders */}
+                                                {order.status.toLowerCase() !== 'completed' && 
+                                                 order.status.toLowerCase() !== 'cancelled' && (
+                                                    <button 
+                                                        className="cancel-order-btn"
+                                                        onClick={() => handleCancelClick(order.order_id)}
+                                                    >
+                                                        Cancel Order
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -563,6 +666,44 @@ const MyOrders = () => {
                     </div>
                 </>
             )}
+
+            {/* Cancel Order Confirmation Modal */}
+            <Modal show={showCancelModal} onHide={handleCancelModalClose} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>Cancel Order</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {cancelSuccess ? (
+                        <div className="success-message">
+                            <i className="fa fa-check-circle"></i>
+                            <p>{cancelSuccess}</p>
+                        </div>
+                    ) : (
+                        <>
+                            <p>Are you sure you want to cancel this order? The amount will be refunded to your wallet.</p>
+                            {cancelError && (
+                                <div className="error-message">
+                                    {cancelError}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </Modal.Body>
+                {!cancelSuccess && (
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={handleCancelModalClose}>
+                            No, Keep Order
+                        </Button>
+                        <Button 
+                            variant="danger" 
+                            onClick={handleCancelConfirm}
+                            disabled={cancelLoading}
+                        >
+                            {cancelLoading ? 'Cancelling...' : 'Yes, Cancel Order'}
+                        </Button>
+                    </Modal.Footer>
+                )}
+            </Modal>
         </div>
     );
 };
