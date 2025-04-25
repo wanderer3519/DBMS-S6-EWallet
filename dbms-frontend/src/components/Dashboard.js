@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import './Dashboard.css';
 // ... [imports remain unchanged]
 // ... [imports remain unchanged]
 
-const Dashboard = () => {
+const Dashboard = ({ adminView }) => {
     const [products, setProducts] = useState([]);
     const [allProducts, setAllProducts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -27,20 +27,28 @@ const Dashboard = () => {
         amount: 0,
     });
     const navigate = useNavigate();
+    const { userId } = useParams();  // Get userId from URL parameter
 
     useEffect(() => {
         console.log("Dashboard mounted.");
-        const token = localStorage.getItem('token');
-        if (!token) {
-            console.warn("No token found, redirecting to login");
-            navigate('/login');
-            return;
+        if (adminView && userId) {
+            console.log(`Admin viewing user with ID: ${userId}`);
+            fetchUserDataAsAdmin(userId);
+            fetchProductsForUser(userId);
+            fetchRewardPointsForUser(userId);
+        } else {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.warn("No token found, redirecting to login");
+                navigate('/login');
+                return;
+            }
+            fetchProducts();
+            fetchUserData();
+            fetchRewardPoints();
+            checkRecentRewardsActivity();
         }
-        fetchProducts();
-        fetchUserData();
-        fetchRewardPoints();
-        checkRecentRewardsActivity();
-    }, [navigate]);
+    }, [navigate, adminView, userId]);
 
     const fetchProducts = async () => {
         try {
@@ -206,12 +214,95 @@ const Dashboard = () => {
         navigate('/cart');
     };
 
+    // Add function to fetch user data as admin
+    const fetchUserDataAsAdmin = async (userId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`http://localhost:8000/api/admin/user/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            setUser({
+                user_id: response.data.user_id,
+                full_name: response.data.full_name,
+                email: response.data.email,
+                role: response.data.role
+            });
+            
+            setBalance(response.data.account_balance);
+            setLoading(false);
+        } catch (err) {
+            console.error("Error fetching user data as admin:", err);
+            setError("Failed to load user data");
+            setLoading(false);
+        }
+    };
+
+    // Add function to fetch products for a specific user
+    const fetchProductsForUser = async (userId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:8000/products', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const products = response.data;
+            setProducts(products);
+            setAllProducts(products);
+            
+            // Extract categories from products
+            const uniqueCategories = [...new Set(products.map(product => product.business_category))];
+            setCategories(uniqueCategories);
+            
+            setLoading(false);
+        } catch (err) {
+            console.error("Error fetching products:", err);
+            setLoading(false);
+        }
+    };
+
+    // Add function to fetch reward points for a specific user
+    const fetchRewardPointsForUser = async (userId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(`http://localhost:8000/api/admin/user/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            setRewardPoints({
+                total_points: response.data.reward_points,
+                points_value: response.data.reward_points * 0.1  // Assuming 1 point = ₹0.1
+            });
+        } catch (err) {
+            console.error("Error fetching reward points:", err);
+        }
+    };
+
     if (loading) return <div className="loading">Loading products...</div>;
     if (error) return <div className="error">{error}</div>;
 
     return (
         <div className="dashboard-container">
             <div className="dashboard-header">
+                {adminView && (
+                    <div className="admin-view-banner">
+                        <button 
+                            className="back-to-admin-btn"
+                            onClick={() => navigate('/admin')}
+                        >
+                            ← Back to Admin Dashboard
+                        </button>
+                        <span className="admin-view-label">
+                            Admin View - Viewing User #{userId}
+                        </span>
+                    </div>
+                )}
                 <div className="dashboard-title">
                     <h1>Welcome, {user?.full_name || 'User'}!</h1>
                     <div className="wallet-rewards-container">
@@ -220,19 +311,23 @@ const Dashboard = () => {
                             <div className="reward-points-display">
                                 <div className="reward-points-info">
                                     <p>Reward Points: {rewardPoints.total_points} points (worth ₹{rewardPoints.points_value?.toFixed(2) || '0.00'})</p>
-                                    <p className="rewards-hint">Click the button to open conversion page</p>
+                                    {!adminView && (
+                                        <p className="rewards-hint">Click the button to open conversion page</p>
+                                    )}
                                 </div>
-                                <button 
-                                    type="button"
-                                    className="convert-rewards-btn"
-                                    onClick={(e) => {
-                                        navigateToConversion(e);
-                                        return false;
-                                    }}
-                                    disabled={convertingPoints || rewardPoints.total_points <= 0}
-                                >
-                                    {convertingPoints ? 'Please wait...' : 'Go to Conversion Page'}
-                                </button>
+                                {!adminView && (
+                                    <button 
+                                        type="button"
+                                        className="convert-rewards-btn"
+                                        onClick={(e) => {
+                                            navigateToConversion(e);
+                                            return false;
+                                        }}
+                                        disabled={convertingPoints || rewardPoints.total_points <= 0}
+                                    >
+                                        {convertingPoints ? 'Please wait...' : 'Go to Conversion Page'}
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>

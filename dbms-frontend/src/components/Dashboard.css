@@ -920,3 +920,35 @@
     font-style: italic;
 }
       
+/* Admin View Banner */
+.admin-view-banner {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    border: 1px solid #f5c6cb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-view-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.back-to-admin-btn {
+    background-color: #721c24;
+    color: white;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.back-to-admin-btn:hover {
+    background-color: #5a171d;
+}

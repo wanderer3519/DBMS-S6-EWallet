@@ -652,3 +652,71 @@
 .order-card:nth-child(4) { animation-delay: 0.4s; }
 .order-card:nth-child(5) { animation-delay: 0.5s; }
 .order-card:nth-child(n+6) { animation-delay: 0.6s; } 
+
+/* Refund Message */
+.refund-message {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.refund-message.success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.refund-message.error {
+    background-color: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.refund-message::before {
+    margin-right: 10px;
+    font-size: 1.2rem;
+}
+
+.refund-message.success::before {
+    content: "✓";
+}
+
+.refund-message.error::before {
+    content: "✕";
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.refund-order-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refund-order-btn:hover {
+    background-color: #bb2d3b;
+}
+
+.refund-order-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}

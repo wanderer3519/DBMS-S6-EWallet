@@ -168,9 +168,19 @@ const OrderConfirmation = () => {
         <div className="order-confirmation-container">
             <div className="order-confirmation-content">
                 <div className="success-header">
-                    <span className="success-icon">✅</span>
-                    <h1>Order Placed Successfully!</h1>
-                    <p className="thank-you">Thank you for your purchase.</p>
+                    {orderDetails.status === 'cancelled' ? (
+                        <>
+                            <span className="cancelled-icon">❌</span>
+                            <h1>Order Cancelled</h1>
+                            <p className="cancelled-message">This order has been cancelled and refunded to your wallet.</p>
+                        </>
+                    ) : (
+                        <>
+                            <span className="success-icon">✅</span>
+                            <h1>Order Placed Successfully!</h1>
+                            <p className="thank-you">Thank you for your purchase.</p>
+                        </>
+                    )}
                 </div>
                 <p className="order-date">
                     <span className="label">Order Date:</span> {formatDate(orderDate, 'date')}
@@ -190,9 +200,15 @@ const OrderConfirmation = () => {
                     
                     {/* Payment confirmation message - exact wording as specified */}
                     <div className="payment-confirmation">
-                        <p className="payment-success">
-                            Your order has been successfully placed using <strong>{formattedPaymentMethod}</strong>.
-                        </p>
+                        {orderDetails.status === 'cancelled' ? (
+                            <p className="refund-success">
+                                This order has been cancelled. The amount of <strong>₹{orderDetails.total_amount.toFixed(2)}</strong> has been refunded to your wallet.
+                            </p>
+                        ) : (
+                            <p className="payment-success">
+                                Your order has been successfully placed using <strong>{formattedPaymentMethod}</strong>.
+                            </p>
+                        )}
                     </div>
                     
                     <p className="order-total">
@@ -244,6 +260,29 @@ const OrderConfirmation = () => {
                         >
                             📄 Go to My Orders
                         </button>
+                        
+                        {orderDetails.status !== 'cancelled' && (
+                            <button 
+                                className="refund-order-btn"
+                                onClick={() => {
+                                    // Check if order is within 24 hours
+                                    const orderTime = new Date(orderDate).getTime();
+                                    const currentTime = new Date().getTime();
+                                    const timeDiff = currentTime - orderTime;
+                                    
+                                    if (timeDiff > 24 * 60 * 60 * 1000) {
+                                        alert('Orders can only be cancelled within 24 hours of placement.');
+                                        return;
+                                    }
+                                    
+                                    if (window.confirm('Are you sure you want to cancel this order and get a refund to your wallet? This action cannot be undone.')) {
+                                        navigate(`/orders?refund=${orderDetails.order_id}`); // Pass refund parameter
+                                    }
+                                }}
+                            >
+                                💰 Cancel & Get Refund
+                            </button>
+                        )}
                     </div>
                 </div>
 

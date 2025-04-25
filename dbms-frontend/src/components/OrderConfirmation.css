@@ -337,3 +337,68 @@
         font-size: 1.5rem;
     }
 } 
+
+/* Cancelled Order Styles */
+.cancelled-icon {
+    color: #dc3545;
+    font-size: 4rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.success-header h1:has(+ .cancelled-message) {
+    color: #dc3545;
+}
+
+.cancelled-message {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.refund-success {
+    color: #dc3545;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.refund-success strong {
+    font-weight: 600;
+}
+
+/* Refund Button */
+.refund-order-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.refund-order-btn:hover {
+    background-color: #bb2d3b;
+}
+
+@media (max-width: 600px) {
+    .order-confirmation-content {
+        padding: 1.5rem;
+    }
+
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .success-icon {
+        font-size: 3rem;
+    }
+
+    .success-header h1 {
+        font-size: 1.5rem;
+    }
+}

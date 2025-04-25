@@ -217,53 +217,119 @@ class ProductUpdate(BaseModel):
 def home():
     return {"message": "Hello! This is Chakradhar Reddy"}
 
-# function
 @app.post("/signup", response_model=Token)
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     try:
-        # Call the SQL function
-        query = text("""
-            SELECT * FROM signup_user(:user_email, :user_full_name, :user_password, :user_role)
-        """)
-        result = db.execute(query, {
-            "user_email": user.email,
-            "user_full_name": user.full_name,
-            "user_password": user.password,
-            "user_role": user.role.value
-        }).fetchone()
-
-        # Return the access token and token type
-        return {"access_token": result.access_token, "token_type": result.token_type}
+        # Start a transaction
+        db.begin()
+        
+        # Check if user already exists
+        db_user = db.query(Users).filter(Users.email == user.email).first()
+        if db_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Create new user
+        hashed_password = get_password_hash(user.password)
+        db_user = Users(
+            email=user.email,
+            full_name=user.full_name,
+            password_hash=hashed_password,
+            role=user.role,
+            status=UserStatus.active,
+            created_at=datetime.now()
+        )
+        
+        db.add(db_user)
+        db.flush()  # Get the user_id without committing
+        
+        # Create account for new user with zero balance
+        account = Account(
+            user_id=db_user.user_id,
+            account_type=AccountType.user,
+            balance=0.0,
+            created_at=datetime.now()
+        )
+        db.add(account)
+        
+        # Log user creation
+        log = Logs(
+            user_id=db_user.user_id,
+            action="user_creation",
+            description=f"User {user.email} created with role {user.role}",
+            created_at=datetime.now()
+        )
+        db.add(log)
+        
+        # Commit all changes
+        db.commit()
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": user.email}
+        )
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+        
     except Exception as e:
+        # Rollback on error
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating user: {str(e)}"
         )
-    
-# function
+
+
 @app.post("/login", response_model=Token)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
     try:
-        # Call the SQL procedure
-        query = text("""
-            SELECT * FROM login_user(:user_email, :user_password)
-        """)
-        result = db.execute(query, {
-            "user_email": user_data.email,
-            "user_password": user_data.password
-        }).fetchone()
-
-        # Return the access token, token type, and user ID
-        return Token(
-            access_token=result.access_token,
-            token_type=result.token_type,
-            user_id=result.user_id
+        # Find user by email
+        users = db.query(Users).filter(Users.email == user_data.email).first()
+        if not users:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        
+        # Verify password
+        if not verify_password(user_data.password, users.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": users.email}
         )
+        
+        # Log login
+        log = Logs(
+            user_id=users.user_id,
+            action="user_login",
+            description=f"User {users.email} logged in",
+            created_at=datetime.now()
+        )
+        db.add(log)
+        db.commit()
+        
+        # Get user's account
+        account = db.query(Account).filter(Account.user_id == users.user_id).first()
+        
+        # Return token with user and account information
+        return Token(
+            access_token =  access_token,
+            token_type = "bearer",
+            user_id =  users.user_id
+        )   
+        
     except Exception as e:
         print(f"Login error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred during login: {str(e)}"
+            detail="An error occurred during login"
         )
 
 # Account Management Endpoints
@@ -298,48 +364,45 @@ def create_account(account: AccountCreate, user_id: int, db: Session = Depends(g
     
     return db_account
 
-# view
 @app.get("/accounts/{user_id}", response_model=List[AccountResponse])
 def get_user_accounts(user_id: int, db: Session = Depends(get_db)):
-    # Query the view instead of the table
-    query = text("""
-        SELECT account_id, user_id, account_type, balance, created_at
-        FROM user_accounts_view
-        WHERE user_id = :user_id
-    """)
-    result = db.execute(query, {"user_id": user_id}).fetchall()
-
-    # Map the result to the response model
-    accounts = [
-        AccountResponse(
-            account_id=row[0],
-            user_id=row[1],
-            account_type=row[2],
-            balance=row[3],
-            created_at=row[4]
-        )
-        for row in result
-    ]
+    accounts = db.query(Account).filter(Account.user_id == user_id).all()
     return accounts
 
-# procedure
-# @app.post("/accounts/{account_id}/top-up", response_model=TransactionResponse)
-# def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)):
-#     try:
-#         # Call the stored procedure
-#         query = text("CALL top_up_account(:account_id, :amount)")
-#         db.execute(query, {"account_id": account_id, "amount": amount})
-#         db.commit()
-
-#         # Fetch the latest transaction for the account
-#         transaction = db.query(Transactions).filter(
-#             Transactions.account_id == account_id
-#         ).order_by(Transactions.created_at.desc()).first()
-
-#         return transaction
-#     except Exception as e:
-#         db.rollback()
-#         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/accounts/{account_id}/top-up", response_model=TransactionResponse)
+def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)):
+    # Check if account exists
+    account = db.query(Account).filter(Account.account_id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Create transaction
+    transaction = Transactions(
+        account_id=account_id,
+        amount=amount,
+        transaction_type=TransactionType.top_up,
+        status=TransactionStatus.completed,
+        created_at=datetime.now()
+    )
+    
+    db.add(transaction)
+    
+    # Update account balance
+    account.balance += amount
+    
+    # Log transaction
+    log = Logs(
+        user_id=account.user_id,
+        action="account_top_up",
+        description=f"Account {account_id} topped up with {amount}",
+        created_at=datetime.now()
+    )
+    db.add(log)
+    
+    db.commit()
+    db.refresh(transaction)
+    
+    return transaction
 
 @app.post("/transactions/", response_model=TransactionResponse)
 def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
@@ -377,13 +440,12 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
-# view
+
 @app.get("/transactions/{account_id}", response_model=List[TransactionResponse])
 def fetch_transactions(account_id: int, db: Session = Depends(get_db)):
     transactions = db.query(Transactions).filter(Transactions.account_id == account_id).all()
     return transactions
 
-# view
 @app.get("/reward-points/{account_id}")
 def get_reward_points(account_id: int, db: Session = Depends(get_db)):
     query = text("SELECT reward_id, account_id, points, status, created_at FROM reward_points WHERE account_id = :account_id")
@@ -396,7 +458,6 @@ def get_reward_points(account_id: int, db: Session = Depends(get_db)):
 
     return {"reward_points": reward_points_list}
 
-# procedure
 @app.post("/redeem-rewards/")
 def redeem_rewards(account_id: int, points: int, db: Session = Depends(get_db)):
     try:
@@ -478,32 +539,22 @@ async def create_product(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/products/", response_model=List[ProductResponse])
+def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    products = db.query(Product).offset(skip).limit(limit).all()
+    return products
 
 @app.get("/products/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: int, db: Session = Depends(get_db)):
-    try:
-        query = text("SELECT * FROM products WHERE product_id = :product_id")
-        result = db.execute(query, {"product_id": product_id}).fetchone()
-        if not result:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Product not found"
-            )
-        return ProductResponse(
-            product_id=result.product_id,
-            name=result.name,
-            description=result.description,
-            price=result.price,
-            mrp=result.mrp,
-            stock=result.stock,
-            image_url=result.image_url,
-            status=result.status,
-            business_category=result.business_category,
-            created_at=result.created_at,
-            updated_at=result.updated_at
+    product = db.query(Product).filter(Product.product_id == product_id).first()
+    
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching product: {str(e)}")
+    
+    return product
 
 @app.get("/products/merchant/{merchant_id}", response_model=List[ProductResponse])
 def get_merchant_products(merchant_id: int, db: Session = Depends(get_db)):
@@ -1413,44 +1464,61 @@ async def admin_signup(user: UserCreate, db: Session = Depends(get_db)):
         "name": db_user.full_name
     }
 
-
 @app.post("/admin/login", response_model=Token)
 def admin_login(user_data: UserLogin, db: Session = Depends(get_db)):
-    try:
-        # Call the SQL function
-        query = text("""
-            SELECT * FROM admin_login(:user_email, :user_password)
-        """)
-        result = db.execute(query, {
-            "user_email": user_data.email,
-            "user_password": user_data.password
-        }).fetchone()
-
-        if not result:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password"
-            )
-
-        # Return the access token, token type, and user information
-        return {
-            "access_token": result.access_token,
-            "token_type": result.token_type,
-            "user_id": result.user_id,
-            "email": result.email,
-            "role": result.role,
-            "name": result.full_name,
-            "account": {
-                "id": result.account_id,
-                "balance": result.balance or 0.0
-            }
-        }
-    except Exception as e:
-        print(f"Error during admin login: {e}")
+    # Find user by email
+    users = db.query(Users).filter(Users.email == user_data.email).first()
+    if not users:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred during login"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
         )
+    
+    # Verify password
+    if not verify_password(user_data.password, users.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password"
+        )
+    
+    # Check if user is admin
+    if users.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden. Admin privileges required."
+        )
+    
+    # Create access token
+    access_token = create_access_token(
+        data={"sub": users.email}
+    )
+    
+    # Log admin login
+    log = Logs(
+        user_id=users.user_id,
+        action="admin_login",
+        description=f"Admin {users.email} logged in",
+        created_at=datetime.now()
+    )
+    db.add(log)
+    db.commit()
+    
+    # Get user's account
+    account = db.query(Account).filter(Account.user_id == users.user_id).first()
+    
+    # Return token with user and account information
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user_id": users.user_id,
+        "email": users.email,
+        "role": users.role.value,
+        "name": users.full_name,
+        "account": {
+            "id": account.account_id if account else None,
+            "balance": float(account.balance) if account else 0.0
+        }
+    }
 
 @app.get("/api/admin/orders")
 async def get_admin_orders(
@@ -1898,46 +1966,71 @@ async def update_merchant_product(
         ).first()
         if not product:
             raise HTTPException(status_code=404, detail="Product not found")
+            
+        # Determine if this is a JSON request or a form request
+        content_type = request.headers.get("Content-Type", "")
+        is_json = "application/json" in content_type
+        
+        # If this is a JSON request, parse the JSON body
+        if is_json:
+            try:
+                json_data = await request.json()
+                name = json_data.get("name", name)
+                description = json_data.get("description", description)
+                price = json_data.get("price", price)
+                mrp = json_data.get("mrp", mrp)
+                stock = json_data.get("stock", stock)
+                business_category = json_data.get("business_category", business_category)
+                # Note: JSON requests can't handle file uploads, so image remains None
+            except Exception as e:
+                # If JSON parsing fails, continue with form data
+                print(f"Error parsing JSON: {e}")
+                pass
 
         # Update fields if provided
-        update_query = text("""
-            UPDATE products
-            SET name = COALESCE(:name, name),
-                description = COALESCE(:description, description),
-                price = COALESCE(:price, price),
-                mrp = COALESCE(:mrp, mrp),
-                stock = COALESCE(:stock, stock),
-                business_category = COALESCE(:business_category, business_category),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE product_id = :product_id AND merchant_id = :merchant_id
-            RETURNING *
-        """)
+        if name is not None:
+            product.name = name
+        if description is not None:
+            product.description = description
+        if price is not None:
+            product.price = price
+        if mrp is not None:
+            product.mrp = mrp
+        if stock is not None:
+            product.stock = stock
+        if business_category is not None:
+            product.business_category = business_category
 
-        updated_product = db.execute(update_query, {
-            "name": name,
-            "description": description,
-            "price": price,
-            "mrp": mrp,
-            "stock": stock,
-            "business_category": business_category,
-            "product_id": product_id,
-            "merchant_id": merchant.merchant_id
-        }).fetchone()
+        # Handle image update
+        if image is not None and image.filename:
+            # Delete old image if exists
+            if product.image_url:
+                await delete_file(product.image_url)
+            
+            # Save new image
+            product.image_url = await save_uploaded_file(image)
 
-        if not updated_product:
-            raise HTTPException(status_code=404, detail="Product not found or update failed")
+        # Update timestamp
+        product.updated_at = datetime.now()
+        
+        # Keep the original created_at timestamp
+        if not product.created_at:
+            product.created_at = datetime.now()
 
+        db.commit()
+        db.refresh(product)
+        
         # Add a log entry for this update
         log = Logs(
             user_id=current_user.user_id,
             action="product_update",
-            description=f"Updated product {updated_product.name} (ID: {updated_product.product_id})",
+            description=f"Updated product {product.name} (ID: {product.product_id})",
             created_at=datetime.now()
         )
         db.add(log)
         db.commit()
 
-        return updated_product
+        return product
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -2125,61 +2218,78 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
 # Merchant Signup and Login
 @app.post("/merchant/signup", response_model=Token)
 async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
+    # Check if user already exists
+    db_user = db.query(Users).filter(Users.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Hash the password
+    hashed_password = get_password_hash(user.password)
+    
     try:
-        # Call the SQL function
-        query = text("""
-            SELECT * FROM merchant_signup(:user_email, :user_full_name, :user_password, :user_contact)
-        """)
-        result = db.execute(query, {
-            "user_email": user.email,
-            "user_full_name": user.full_name,
-            "user_password": user.password,
-            "user_contact": user.contact
-        }).fetchone()
-
-        # Return the access token and token type
-        return {
-            "access_token": result.access_token,
-            "token_type": result.token_type
-        }
+        # Create new user
+        db_user = Users(
+            email=user.email,
+            full_name=user.full_name,
+            password_hash=hashed_password,
+            role=UserRole.merchant,
+            status=UserStatus.active,
+            phone=user.contact,  # Store contact as phone
+            created_at=datetime.now()
+        )
+        db.add(db_user)
+        db.flush()  # Flush to get the user_id
+        
+        # Create merchant profile with required fields
+        merchant = Merchants(
+            user_id=db_user.user_id,
+            merchant_id=db_user.user_id,  # Use user_id as merchant_id
+            business_name=user.full_name,  # Use full_name as business_name
+            business_category="General",  # Default category
+            name=user.full_name,
+            email=user.email,
+            contact=user.contact or "",  # Use contact from user input
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        db.add(merchant)
+        db.commit()
+        db.refresh(db_user)
+        
+        # Create access token
+        access_token = create_access_token(data={"sub": user.email})
+        return {"access_token": access_token, "token_type": "bearer"}
+    
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating merchant: {str(e)}"
         )
-    
+
 @app.post("/merchant/login", response_model=Token)
 def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
     try:
-        # Call the SQL function
-        query = text("""
-            SELECT * FROM merchant_login(:user_email, :user_password)
-        """)
-        result = db.execute(query, {
-            "user_email": user_data.email,
-            "user_password": user_data.password
-        }).fetchone()
-
-        if not result:
+        users = db.query(Users).filter(Users.email == user_data.email).first()
+        if not users or users.role != UserRole.merchant:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password"
             )
-
-        # Return the access token, token type, and user ID
-        return Token(
-            access_token=result.access_token,
-            token_type=result.token_type,
-            user_id=result.user_id
-        )
+        if not verify_password(user_data.password, users.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        access_token = create_access_token(data={"sub": users.email})
+        return Token(access_token= access_token, token_type =  "bearer", user_id = users.user_id)
     except Exception as e:
         print(f"Error during merchant login: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred during login"
         )
-    
+
 # Merchant Product Management
 @app.get("/api/merchant/{merchant_id}/logs")
 async def get_merchant_logs(
@@ -2479,7 +2589,7 @@ async def process_checkout(
         db.commit()
         db.refresh(db_order)
         
-        # Create order items (stock deduction handled by trigger)
+        # Create order items and update stock
         for product, quantity in order_items:
             order_item = OrderItem(
                 order_id=db_order.order_id,
@@ -2489,8 +2599,40 @@ async def process_checkout(
                 created_at=created_at
             )
             db.add(order_item)
+            product.stock -= quantity
+            product.updated_at = created_at
         
-        # Create transaction (reward points earning handled by trigger)
+        # Update account balance if using wallet
+        if wallet_amount > 0:
+            account.balance -= Decimal(str(wallet_amount))
+        
+        # Process reward points redemption if used
+        if use_rewards and reward_points:
+            points_to_redeem = reward_points
+            for reward in available_rewards:
+                if points_to_redeem <= 0:
+                    break
+                
+                if reward.points <= points_to_redeem:
+                    reward.status = RewardStatus.redeemed
+                    points_to_redeem -= reward.points
+                else:
+                    # Split the reward point record
+                    remaining_points = reward.points - points_to_redeem
+                    reward.points = points_to_redeem
+                    reward.status = RewardStatus.redeemed
+                    
+                    new_reward = RewardPoints(
+                        transaction_id=db_order.order_id,
+                        user_id=reward.user_id,
+                        points=remaining_points,
+                        status=RewardStatus.earned,
+                        created_at=created_at
+                    )
+                    db.add(new_reward)
+                    points_to_redeem = 0
+        
+        # Create transaction for the purchase
         transaction = Transactions(
             account_id=account.account_id,
             amount=total,
@@ -2499,7 +2641,27 @@ async def process_checkout(
             created_at=created_at
         )
         db.add(transaction)
+        db.flush()  # Flush to get the transaction ID
         db.commit()
+        db.refresh(transaction)
+        
+        # Add reward points (5% of total amount) AFTER transaction creation
+        earned_points = 0
+        if payment_method != 'cod':
+            earned_points = int(total * 0.05)  # 5% of order total
+            if earned_points > 0:
+                reward = RewardPoints(
+                    transaction_id=transaction.transaction_id,  # Use transaction ID 
+                    user_id=current_user.user_id,
+                    points=earned_points,
+                    status=RewardStatus.earned,
+                    created_at=created_at
+                )
+                db.add(reward)
+                db.commit()
+                
+                # Automatically convert reward points to wallet balance
+                # await convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
         
         # Clear cart
         db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()
@@ -2512,6 +2674,7 @@ async def process_checkout(
             created_at=created_at
         )
         db.add(log)
+        
         db.commit()
         
         # Get order items with product details
@@ -2542,7 +2705,7 @@ async def process_checkout(
             "created_at": created_at,
             "updated_at": created_at,
             "items": items,
-            "reward_points_earned": int(total * 0.05) if payment_method != 'cod' else 0
+            "reward_points_earned": earned_points
         }
     except HTTPException as he:
         db.rollback()
@@ -2550,7 +2713,7 @@ async def process_checkout(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @app.post("/api/account/add-funds", response_model=dict)
 async def add_funds(
     amount: float = Body(...),
@@ -2882,270 +3045,212 @@ async def get_admin_logs(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
-
-# Modify the existing endpoint to utilize the log_balance_changes_trigger
-@app.post("/accounts/{account_id}/top-up", response_model=TransactionResponse)
-def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)):
+    
+@app.post("/api/orders/{order_id}/refund", response_model=dict)
+async def refund_order(
+    order_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
-        # Call the stored procedure
-        query = text("CALL top_up_account(:account_id, :amount)")
-        db.execute(query, {"account_id": account_id, "amount": amount})
-        db.commit()
-
-        # Fetch the latest transaction for the account
-        transaction = db.query(Transactions).filter(
-            Transactions.account_id == account_id
-        ).order_by(Transactions.created_at.desc()).first()
-
-        return transaction
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Modify the existing endpoint to utilize the log_order_status_changes_trigger
-@app.put("/api/orders/update-status/{order_id}", response_model=dict)
-def update_order_status(order_id: int, new_status: str, db: Session = Depends(get_db)):
-    try:
-        # Update order status
-        query = text("""
-            UPDATE orders
-            SET status = :new_status
-            WHERE order_id = :order_id
-            RETURNING user_id, status
-        """)
-        result = db.execute(query, {"new_status": new_status, "order_id": order_id}).fetchone()
-
-        if not result:
+        # Find the order
+        order = db.query(Order).filter(
+            Order.order_id == order_id,
+            Order.user_id == current_user.user_id
+        ).first()
+        
+        if not order:
             raise HTTPException(status_code=404, detail="Order not found")
-
+        
+        # Check if order status is valid for refund (not already cancelled or too old)
+        if order.status == OrderStatus.cancelled:
+            raise HTTPException(status_code=400, detail="Order is already cancelled")
+        
+        # Check if order is within refundable time frame (e.g., within 24 hours)
+        order_time = order.created_at
+        current_time = datetime.now()
+        time_difference = current_time - order_time
+        
+        # Only allow refunds for orders placed within 24 hours
+        if time_difference.total_seconds() > 24 * 60 * 60:
+            raise HTTPException(
+                status_code=400, 
+                detail="Order is not eligible for refund. Refunds are only available within 24 hours of order placement."
+            )
+        
+        # Get user's account to refund money to
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="User account not found")
+        
+        # Calculate refund amount (including wallet amount and reward discount)
+        refund_amount = order.total_amount
+        if order.wallet_amount:
+            refund_amount += order.wallet_amount
+        
+        # Create a refund transaction
+        refund_transaction = Transactions(
+            account_id=account.account_id,
+            amount=refund_amount,
+            transaction_type=TransactionType.refund,
+            status=TransactionStatus.completed,
+            created_at=datetime.now()
+        )
+        db.add(refund_transaction)
+        
+        # Add refund record
+        refund = Refunds(
+            transaction_id=refund_transaction.transaction_id,
+            user_id=current_user.user_id,
+            amount=refund_amount,
+            status=RefundStatus.completed,
+            created_at=datetime.now()
+        )
+        db.add(refund)
+        
+        # Update account balance
+        account.balance += refund_amount
+        
+        # If reward points were earned from this order, reverse them
+        if hasattr(order, 'reward_points_earned') and order.reward_points_earned > 0:
+            # Find and update reward points if they exist and haven't been redeemed
+            reward_points = db.query(RewardPoints).filter(
+                RewardPoints.user_id == current_user.user_id,
+                RewardPoints.points == order.reward_points_earned,
+                RewardPoints.status == RewardStatus.earned
+            ).first()
+            
+            if reward_points:
+                reward_points.status = RewardStatus.cancelled
+        
+        # Update order status to cancelled
+        order.status = OrderStatus.cancelled
+        order.updated_at = datetime.now()
+        
+        # Log the refund
+        log = Logs(
+            user_id=current_user.user_id,
+            action="order_refund",
+            description=f"Order {order_id} was refunded. Amount {refund_amount} credited to wallet.",
+            created_at=datetime.now()
+        )
+        db.add(log)
+        
         db.commit()
-        return {"message": "Order status updated successfully", "new_status": result.status}
+        
+        return {
+            "message": "Order has been cancelled and refunded successfully",
+            "refund_amount": float(refund_amount),
+            "new_balance": float(account.balance)
+        }
+    except HTTPException as he:
+        db.rollback()
+        raise he
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-# Add SQL triggers, views, and roles directly in the main.py file
-
-@app.on_event("startup")
-def setup_database():
-    db = next(get_db())
-
-    # Create triggers
-    db.execute(text('''
-        CREATE OR REPLACE FUNCTION log_balance_changes()
-        RETURNS TRIGGER AS $$
-        BEGIN
-            INSERT INTO Logs(user_id, action, description, created_at)
-            VALUES (
-                NEW.user_id,
-                'balance_update',
-                CONCAT('Balance updated to ', NEW.balance),
-                NOW()
-            );
-            RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-
-        CREATE TRIGGER balance_changes_trigger
-        AFTER UPDATE OF balance ON Account
-        FOR EACH ROW
-        EXECUTE FUNCTION log_balance_changes();
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE FUNCTION log_order_status_changes()
-        RETURNS TRIGGER AS $$
-        BEGIN
-            INSERT INTO Logs(user_id, action, description, created_at)
-            VALUES (
-                OLD.user_id,
-                'order_status_update',
-                CONCAT('Order status changed to ', NEW.status),
-                NOW()
-            );
-            RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-
-        CREATE TRIGGER order_status_changes_trigger
-        AFTER UPDATE OF status ON Orders
-        FOR EACH ROW
-        EXECUTE FUNCTION log_order_status_changes();
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE FUNCTION log_product_updates()
-        RETURNS TRIGGER AS $$
-        BEGIN
-            INSERT INTO Logs(user_id, action, description, created_at)
-            VALUES (
-                NEW.merchant_id,
-                'product_update',
-                CONCAT('Product ', NEW.name, ' updated'),
-                NOW()
-            );
-            RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-
-        CREATE TRIGGER product_updates_trigger
-        AFTER UPDATE ON Products
-        FOR EACH ROW
-        EXECUTE FUNCTION log_product_updates();
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE FUNCTION log_reward_redemptions()
-        RETURNS TRIGGER AS $$
-        BEGIN
-            INSERT INTO Logs(user_id, action, description, created_at)
-            VALUES (
-                NEW.user_id,
-                'reward_redemption',
-                CONCAT('Redeemed ', NEW.points, ' points'),
-                NOW()
-            );
-            RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-
-        CREATE TRIGGER reward_redemptions_trigger
-        AFTER UPDATE OF status ON RewardPoints
-        FOR EACH ROW
-        WHEN (NEW.status = 'redeemed')
-        EXECUTE FUNCTION log_reward_redemptions();
-    '''))
-
-    # Create views
-    db.execute(text('''
-        CREATE OR REPLACE VIEW user_profiles AS
-        SELECT 
-            u.user_id,
-            u.full_name,
-            u.email,
-            u.role,
-            u.status,
-            u.created_at,
-            a.account_id,
-            a.balance
-        FROM Users u
-        LEFT JOIN Account a ON u.user_id = a.user_id;
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE VIEW merchant_stats AS
-        SELECT 
-            m.merchant_id,
-            m.business_name,
-            m.business_category,
-            COUNT(p.product_id) AS total_products,
-            SUM(CASE WHEN p.status = 'active' THEN 1 ELSE 0 END) AS active_products
-        FROM Merchants m
-        LEFT JOIN Products p ON m.merchant_id = p.merchant_id
-        GROUP BY m.merchant_id, m.business_name, m.business_category;
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE VIEW order_summaries AS
-        SELECT 
-            o.order_id,
-            o.user_id,
-            o.total_amount,
-            o.status,
-            o.created_at,
-            COUNT(oi.order_item_id) AS total_items
-        FROM Orders o
-        LEFT JOIN OrderItems oi ON o.order_id = oi.order_id
-        GROUP BY o.order_id;
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE VIEW product_details AS
-        SELECT 
-            p.product_id,
-            p.name,
-            p.description,
-            p.price,
-            p.stock,
-            p.business_category,
-            p.status,
-            p.created_at,
-            m.business_name AS merchant_name
-        FROM Products p
-        LEFT JOIN Merchants m ON p.merchant_id = m.merchant_id;
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE VIEW product_search_view AS
-        SELECT 
-            p.product_id,
-            p.name,
-            p.description,
-            p.price,
-            p.stock,
-            p.business_category,
-            p.status,
-            p.created_at,
-            p.updated_at,
-            m.merchant_id,
-            m.business_name,
-            u.user_id
-        FROM Products p
-        LEFT JOIN Merchants m ON p.merchant_id = m.merchant_id
-        LEFT JOIN Users u ON m.user_id = u.user_id;
-    '''))
-
-    db.execute(text('''
-        CREATE OR REPLACE VIEW category_view AS
-        SELECT 
-            p.product_id,
-            p.name,
-            p.description,
-            p.price,
-            p.stock,
-            p.business_category,
-            p.status,
-            p.created_at,
-            p.updated_at,
-            m.merchant_id,
-            m.business_name
-        FROM Products p
-        LEFT JOIN Merchants m ON p.merchant_id = m.merchant_id
-        WHERE p.business_category IS NOT NULL;
-    '''))
-
-    # Create roles
-    db.execute(text('''
-        CREATE ROLE admin;
-        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO admin;
-        GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO admin;
-    '''))
-
-    db.execute(text('''
-        CREATE ROLE merchant;
-        GRANT SELECT, INSERT, UPDATE ON Products TO merchant;
-        GRANT SELECT, INSERT, UPDATE ON Orders TO merchant;
-        GRANT SELECT ON Logs TO merchant;
-    '''))
-
-    db.execute(text('''
-        CREATE ROLE user;
-        GRANT SELECT ON Products TO user;
-        GRANT SELECT, INSERT, UPDATE ON Cart TO user;
-        GRANT SELECT, INSERT, UPDATE ON Orders TO user;
-        GRANT SELECT ON RewardPoints TO user;
-    '''))
-
-    db.execute(text('''
-        CREATE INDEX IF NOT EXISTS idx_users_user_id ON Users(user_id);
-        CREATE INDEX IF NOT EXISTS idx_products_product_id ON Products(product_id);
-        CREATE INDEX IF NOT EXISTS idx_orders_order_id ON Orders(order_id);
-        CREATE INDEX IF NOT EXISTS idx_merchants_merchant_id ON Merchants(merchant_id);
-        CREATE INDEX IF NOT EXISTS idx_orders_user_id ON Orders(user_id);
-        CREATE INDEX IF NOT EXISTS idx_cart_user_id ON Cart(user_id);
-        CREATE INDEX IF NOT EXISTS idx_cart_items_cart_id ON CartItems(cart_id);
-        CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON OrderItems(order_id);
-        CREATE INDEX IF NOT EXISTS idx_reward_points_user_id ON RewardPoints(user_id);
-    '''))
-
-    db.commit()
+@app.post("/api/orders/{order_id}/refund", response_model=dict)
+async def refund_order(
+    order_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Find the order
+        order = db.query(Order).filter(
+            Order.order_id == order_id,
+            Order.user_id == current_user.user_id
+        ).first()
+        
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        # Check if order status is valid for refund (not already cancelled or too old)
+        if order.status == OrderStatus.cancelled:
+            raise HTTPException(status_code=400, detail="Order is already cancelled")
+        
+        # Check if order is within refundable time frame (e.g., within 24 hours)
+        order_time = order.created_at
+        current_time = datetime.now()
+        time_difference = current_time - order_time
+        
+        # Only allow refunds for orders placed within 24 hours
+        if time_difference.total_seconds() > 24 * 60 * 60:
+            raise HTTPException(
+                status_code=400, 
+                detail="Order is not eligible for refund. Refunds are only available within 24 hours of order placement."
+            )
+        
+        # Get user's account to refund money to
+        account = db.query(Account).filter(Account.user_id == current_user.user_id).first()
+        if not account:
+            raise HTTPException(status_code=404, detail="User account not found")
+        
+        # Calculate refund amount (including wallet amount and reward discount)
+        refund_amount = order.total_amount
+        if order.wallet_amount:
+            refund_amount += order.wallet_amount
+        
+        # Create a refund transaction
+        refund_transaction = Transactions(
+            account_id=account.account_id,
+            amount=refund_amount,
+            transaction_type=TransactionType.refund,
+            status=TransactionStatus.completed,
+            created_at=datetime.now()
+        )
+        db.add(refund_transaction)
+        
+        # Add refund record
+        refund = Refunds(
+            transaction_id=refund_transaction.transaction_id,
+            user_id=current_user.user_id,
+            amount=refund_amount,
+            status=RefundStatus.completed,
+            created_at=datetime.now()
+        )
+        db.add(refund)
+        
+        # Update account balance
+        account.balance += refund_amount
+        
+        # If reward points were earned from this order, reverse them
+        if hasattr(order, 'reward_points_earned') and order.reward_points_earned > 0:
+            # Find and update reward points if they exist and haven't been redeemed
+            reward_points = db.query(RewardPoints).filter(
+                RewardPoints.user_id == current_user.user_id,
+                RewardPoints.points == order.reward_points_earned,
+                RewardPoints.status == RewardStatus.earned
+            ).first()
+            
+            if reward_points:
+                reward_points.status = RewardStatus.cancelled
+        
+        # Update order status to cancelled
+        order.status = OrderStatus.cancelled
+        order.updated_at = datetime.now()
+        
+        # Log the refund
+        log = Logs(
+            user_id=current_user.user_id,
+            action="order_refund",
+            description=f"Order {order_id} was refunded. Amount {refund_amount} credited to wallet.",
+            created_at=datetime.now()
+        )
+        db.add(log)
+        
+        db.commit()
+        
+        return {
+            "message": "Order has been cancelled and refunded successfully",
+            "refund_amount": float(refund_amount),
+            "new_balance": float(account.balance)
+        }
+    except HTTPException as he:
+        db.rollback()
+        raise he
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    

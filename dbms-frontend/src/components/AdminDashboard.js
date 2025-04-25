@@ -18,6 +18,10 @@ const AdminDashboard = () => {
     });
     const [dateFilter, setDateFilter] = useState('');
     const [activeTab, setActiveTab] = useState('overview');
+    const [users, setUsers] = useState([]);
+    const [merchants, setMerchants] = useState([]);
+    const [searchUserTerm, setSearchUserTerm] = useState('');
+    const [searchMerchantTerm, setSearchMerchantTerm] = useState('');
     const navigate = useNavigate();
     const { user, isAdmin } = useAuth();
 
@@ -60,14 +64,16 @@ const AdminDashboard = () => {
         try {
             await Promise.all([
                 fetchLogs(),
-                fetchStats(),
                 fetchUserLogins(),
-                fetchOrders()
+                fetchOrders(),
+                fetchStats(),
+                fetchUsers(),
+                fetchMerchants()
             ]);
             console.log('Dashboard data fetched successfully');
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-            setError('Failed to load dashboard data. Please try again.');
+            setError('Failed to load some dashboard data. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -163,6 +169,81 @@ const AdminDashboard = () => {
         }
     };
 
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('No auth token found');
+            }
+            
+            console.log('Fetching users...');
+            const response = await axios.get('http://localhost:8000/api/admin/users', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            setUsers(response.data);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            if (error.response?.status === 401) {
+                navigate('/admin/login');
+            }
+        }
+    };
+
+    const fetchMerchants = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('No auth token found');
+            }
+            
+            console.log('Fetching merchants...');
+            const response = await axios.get('http://localhost:8000/api/admin/merchants', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            setMerchants(response.data);
+        } catch (error) {
+            console.error('Error fetching merchants:', error);
+            if (error.response?.status === 401) {
+                navigate('/admin/login');
+            }
+        }
+    };
+
+    const handleViewUser = (userId) => {
+        navigate(`/admin/view-user/${userId}`);
+    };
+
+    const handleViewMerchant = (merchantId) => {
+        navigate(`/admin/view-merchant/${merchantId}`);
+    };
+
+    const handleViewUserOrders = (userId) => {
+        navigate(`/admin/view-user/${userId}/orders`);
+    };
+
+    const handleViewUserProfile = (userId) => {
+        navigate(`/admin/view-user/${userId}/profile`);
+    };
+
+    const filteredUsers = searchUserTerm
+        ? users.filter(user => 
+            user.full_name.toLowerCase().includes(searchUserTerm.toLowerCase()) ||
+            user.email.toLowerCase().includes(searchUserTerm.toLowerCase()) ||
+            user.user_id.toString().includes(searchUserTerm)
+        )
+        : users;
+
+    const filteredMerchants = searchMerchantTerm
+        ? merchants.filter(merchant => 
+            merchant.business_name.toLowerCase().includes(searchMerchantTerm.toLowerCase()) ||
+            merchant.email.toLowerCase().includes(searchMerchantTerm.toLowerCase()) ||
+            merchant.merchant_id.toString().includes(searchMerchantTerm) ||
+            merchant.business_category.toLowerCase().includes(searchMerchantTerm.toLowerCase())
+        )
+        : merchants;
+
     // Initial loading state before we verify the user role
     if (!user) {
         return (
@@ -215,6 +296,12 @@ const AdminDashboard = () => {
                             </Nav.Item>
                             <Nav.Item>
                                 <Nav.Link eventKey="systemLogs">System Logs</Nav.Link>
+                            </Nav.Item>
+                            <Nav.Item>
+                                <Nav.Link eventKey="users">Users</Nav.Link>
+                            </Nav.Item>
+                            <Nav.Item>
+                                <Nav.Link eventKey="merchants">Merchants</Nav.Link>
                             </Nav.Item>
                         </Nav>
                     </Col>
@@ -369,14 +456,6 @@ const AdminDashboard = () => {
 
                             <Tab.Pane eventKey="systemLogs">
                                 <h4 className="mb-3">System Logs</h4>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Filter by Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
-                                        value={dateFilter}
-                                        onChange={(e) => setDateFilter(e.target.value)}
-                                    />
-                                </Form.Group>
                                 
                                 <Table responsive striped hover>
                                     <thead>
@@ -388,19 +467,135 @@ const AdminDashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {logs.map((log) => (
+                                        {logs.map(log => (
                                             <tr key={log.log_id}>
                                                 <td>{new Date(log.created_at).toLocaleString()}</td>
                                                 <td>{log.user_name}</td>
-                                                <td>{log.action}</td>
+                                                <td>
+                                                    <Badge bg="info">{log.action}</Badge>
+                                                </td>
                                                 <td>{log.description}</td>
                                             </tr>
                                         ))}
-                                        {logs.length === 0 && (
-                                            <tr>
-                                                <td colSpan="4" className="text-center">No logs found</td>
+                                    </tbody>
+                                </Table>
+                            </Tab.Pane>
+                            
+                            <Tab.Pane eventKey="users">
+                                <h4 className="mb-3">User Management</h4>
+                                
+                                <Form.Group className="mb-3">
+                                    <Form.Control
+                                        type="text"
+                                        placeholder="Search users by name, email or ID..."
+                                        value={searchUserTerm}
+                                        onChange={(e) => setSearchUserTerm(e.target.value)}
+                                    />
+                                </Form.Group>
+                                
+                                <Table responsive striped hover>
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Balance</th>
+                                            <th>Orders</th>
+                                            <th>Created</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredUsers.map(user => (
+                                            <tr key={user.user_id}>
+                                                <td>{user.user_id}</td>
+                                                <td>{user.full_name}</td>
+                                                <td>{user.email}</td>
+                                                <td>₹{user.balance.toFixed(2)}</td>
+                                                <td>{user.order_count}</td>
+                                                <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                                                <td>
+                                                    <Badge bg={user.status === 'active' ? 'success' : 'secondary'}>
+                                                        {user.status}
+                                                    </Badge>
+                                                </td>
+                                                <td>
+                                                    <div className="d-flex gap-2">
+                                                        <button 
+                                                            className="btn btn-sm btn-primary"
+                                                            onClick={() => handleViewUser(user.user_id)}
+                                                            title="View user dashboard"
+                                                        >
+                                                            <i className="fas fa-user"></i> View As
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-sm btn-info"
+                                                            onClick={() => handleViewUserOrders(user.user_id)}
+                                                            title="View user orders"
+                                                        >
+                                                            <i className="fas fa-shopping-bag"></i>
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-sm btn-secondary"
+                                                            onClick={() => handleViewUserProfile(user.user_id)}
+                                                            title="View user profile"
+                                                        >
+                                                            <i className="fas fa-id-card"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
                                             </tr>
-                                        )}
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            </Tab.Pane>
+                            
+                            <Tab.Pane eventKey="merchants">
+                                <h4 className="mb-3">Merchant Management</h4>
+                                
+                                <Form.Group className="mb-3">
+                                    <Form.Control
+                                        type="text"
+                                        placeholder="Search merchants by name, email, category or ID..."
+                                        value={searchMerchantTerm}
+                                        onChange={(e) => setSearchMerchantTerm(e.target.value)}
+                                    />
+                                </Form.Group>
+                                
+                                <Table responsive striped hover>
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Business Name</th>
+                                            <th>Category</th>
+                                            <th>Email</th>
+                                            <th>Contact</th>
+                                            <th>Products</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredMerchants.map(merchant => (
+                                            <tr key={merchant.merchant_id}>
+                                                <td>{merchant.merchant_id}</td>
+                                                <td>{merchant.business_name}</td>
+                                                <td>{merchant.business_category}</td>
+                                                <td>{merchant.email}</td>
+                                                <td>{merchant.contact}</td>
+                                                <td>{merchant.product_count}</td>
+                                                <td>{new Date(merchant.created_at).toLocaleDateString()}</td>
+                                                <td>
+                                                    <button 
+                                                        className="btn btn-sm btn-primary"
+                                                        onClick={() => handleViewMerchant(merchant.merchant_id)}
+                                                    >
+                                                        <i className="fas fa-store"></i> View As
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </Table>
                             </Tab.Pane>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import './MerchantDashboard.css';
 
-const MerchantDashboard = () => {
+const MerchantDashboard = ({ adminView }) => {
   const [products, setProducts] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +45,7 @@ const MerchantDashboard = () => {
     outOfStock: 0
   });
   const navigate = useNavigate();
+  const { merchantId } = useParams(); // Get merchantId from URL parameter
 
   const styles = {
     updateProductForm: {
@@ -76,6 +77,12 @@ const MerchantDashboard = () => {
   };
 
   useEffect(() => {
+    if (adminView && merchantId) {
+      console.log(`Admin viewing merchant with ID: ${merchantId}`);
+      fetchMerchantAsAdmin(merchantId);
+      return;
+    }
+    
     const user = JSON.parse(localStorage.getItem('user'));
     const token = localStorage.getItem('token');
     const hasShownLoginMessage = localStorage.getItem('hasShownLoginMessage');
@@ -94,7 +101,7 @@ const MerchantDashboard = () => {
       const timer = setTimeout(() => setSuccessMessage(''), 10000);
       return () => clearTimeout(timer);
     }
-  }, [navigate]);
+  }, [navigate, adminView, merchantId]);
 
   // New useEffect to fetch product details
   useEffect(() => {
@@ -381,7 +388,7 @@ const MerchantDashboard = () => {
         return;
       }
       
-      setLoading(true); // Show loading state while fetching
+      setLoading(true);
       
       const res = await axios.get(`http://localhost:8000/api/merchant/products`, {
         headers: { 
@@ -390,7 +397,7 @@ const MerchantDashboard = () => {
         },
       });
 
-      // Process products and ensure all required fields
+      // Process products data
       const processedProducts = res.data.map(product => ({
         ...product,
         created_at: product.created_at || new Date().toISOString(),
@@ -398,30 +405,66 @@ const MerchantDashboard = () => {
         business_category: product.business_category || 'Uncategorized'
       }));
 
+      // Sort by most recently updated
       const sortedProducts = processedProducts.sort((a, b) => 
         new Date(b.updated_at) - new Date(a.updated_at)
       );
       
       setAllProducts(sortedProducts);
-      setProducts(sortedProducts);
+      applyFilters(selectedCategory, searchTerm);
       
-      // Extract and sort categories
+      // Extract categories
       const uniqueCategories = [...new Set(sortedProducts.map(product => 
         product.business_category || 'Uncategorized'
       ))].sort();
       
       setCategories(uniqueCategories);
-      
-      // Clear the product details cache to force fresh data
-      setProductDetails({});
-      
-      console.log('All products refreshed successfully');
       setLoading(false);
     } catch (err) {
       console.error('Error refreshing products:', err);
       setError('Failed to refresh products. ' + (err.response?.data?.detail || err.message));
       setLoading(false);
     }
+  };
+
+  // Function to update a product in the local list and reset the form
+  const updateProductInListAndReset = (updatedProduct) => {
+    // Update the product in allProducts
+    setAllProducts(prevProducts => 
+      prevProducts.map(product => 
+        product.product_id === updatedProduct.product_id ? 
+          {...product, ...updatedProduct, updated_at: new Date().toISOString()} : 
+          product
+      )
+    );
+    
+    // Update the product in products list based on current filters
+    setProducts(prevProducts => 
+      prevProducts.map(product => 
+        product.product_id === updatedProduct.product_id ? 
+          {...product, ...updatedProduct, updated_at: new Date().toISOString()} : 
+          product
+      )
+    );
+    
+    // Reset the update form
+    setUpdateProduct({
+      product_name: '',
+      business_category: '',
+      price: '',
+      mrp: '',
+      stock: '',
+      description: ''
+    });
+    
+    // Update productDetails cache
+    setProductDetails(prev => ({
+      ...prev,
+      [updatedProduct.product_id]: {
+        ...prev[updatedProduct.product_id],
+        ...updatedProduct
+      }
+    }));
   };
 
   const handleUpdateSubmit = async (e) => {
@@ -473,44 +516,65 @@ const MerchantDashboard = () => {
         }
       );
       
-      if (response.status === 200 || response.status === 201) {
-        console.log('Product updated successfully:', response.data);
-        
-        // Reset form state
-        setShowUpdateForm(false);
-        setSelectedProduct(null);
-        setUpdateProduct({
-          product_name: '',
-          business_category: '',
-          price: '',
-          mrp: '',
-          stock: '',
-          description: ''
-        });
-        
-        // Show success message
-        setSuccessMessage('Product updated successfully! Refreshing product list...');
-        
-        try {
-          // Simply refresh all products after update
-          await refreshAllProducts();
-          
-          // Update the success message
-          setSuccessMessage('Product updated successfully!');
-          setTimeout(() => setSuccessMessage(''), 5000);
-        } catch (refreshError) {
-          console.error('Error refreshing products:', refreshError);
-          // Even if refresh fails, the update was successful
-          setSuccessMessage('Product updated successfully! Please refresh the page to see updates.');
-          setTimeout(() => setSuccessMessage(''), 5000);
-          setLoading(false);
-        }
-      }
+      setSuccessMessage('Product updated successfully!');
+      setTimeout(() => setSuccessMessage(''), 5000);
+      
+      // Update the local products array with the updated product
+      const updatedProduct = response.data;
+      updateProductInListAndReset(updatedProduct);
+      
+      // Hide the update form
+      setShowUpdateForm(false);
+      setLoading(false);
     } catch (error) {
       console.error('Error updating product:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to update product. Please try again.';
-      setError(errorMessage);
-      setTimeout(() => setError(null), 5000);
+      setError('Failed to update product: ' + (error.response?.data?.detail || error.message));
+      setLoading(false);
+    }
+  };
+
+  // Function to handle product deletion
+  const handleDeleteProduct = async (productId, productName) => {
+    // Ask for confirmation before deleting
+    if (!window.confirm(`Are you sure you want to delete the product "${productName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      setLoading(true);
+      
+      // Send delete request to the API
+      await axios.delete(`http://localhost:8000/api/merchant/products/${productId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Remove the product from the state
+      setAllProducts(prevProducts => prevProducts.filter(product => product.product_id !== productId));
+      setProducts(prevProducts => prevProducts.filter(product => product.product_id !== productId));
+      
+      // Update dashboard summary
+      setDashboardSummary(prevSummary => ({
+        ...prevSummary,
+        totalProducts: prevSummary.totalProducts - 1
+      }));
+      
+      setSuccessMessage('Product deleted successfully!');
+      setTimeout(() => setSuccessMessage(''), 5000);
+      
+      // If the deleted product was selected for updating, reset the form
+      if (selectedProduct && selectedProduct.product_id === productId) {
+        setSelectedProduct(null);
+        setShowUpdateForm(false);
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      setError('Failed to delete product: ' + (error.response?.data?.detail || error.message));
       setLoading(false);
     }
   };
@@ -637,6 +701,60 @@ const MerchantDashboard = () => {
     }
   };
 
+  // Add function to fetch merchant data as admin
+  const fetchMerchantAsAdmin = async (merchantId) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Get merchant profile
+      const profileResponse = await axios.get(`http://localhost:8000/api/admin/merchants`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const merchantData = profileResponse.data.find(m => m.merchant_id.toString() === merchantId);
+      
+      if (!merchantData) {
+        setError("Merchant not found");
+        setLoading(false);
+        return;
+      }
+      
+      setMerchantProfile(merchantData);
+      setShowProfile(true);
+      
+      // Get merchant products
+      const productsResponse = await axios.get(`http://localhost:8000/products?merchant_id=${merchantId}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const productsData = productsResponse.data;
+      setProducts(productsData);
+      setAllProducts(productsData);
+      
+      // Extract categories
+      const uniqueCategories = [...new Set(productsData.map(p => p.business_category || 'Uncategorized'))];
+      
+      // Calculate dashboard metrics
+      setDashboardSummary({
+        totalProducts: productsData.length,
+        totalCategories: uniqueCategories.length,
+        outOfStock: productsData.filter(p => p.stock === 0).length
+      });
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching merchant data as admin:', err);
+      setError(err.response?.data?.detail || "Failed to load merchant data");
+      setLoading(false);
+    }
+  };
+
   if (loading) return <div className="loading">Loading...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -645,14 +763,30 @@ const MerchantDashboard = () => {
       <div className="dashboard-header d-flex justify-content-between align-items-center">
         <h2><i className="fas fa-store"></i> Merchant Dashboard</h2>
         <div className="header-actions">
-          <button className="btn btn-outline-primary" onClick={() => navigate('/merchant/profile')}>
-            <i className="fas fa-user"></i> Profile
-          </button>
-          <button className="btn btn-outline-secondary" onClick={handleLogsClick}>
-            <i className="fas fa-history"></i> Activity Logs
-          </button>
+          {adminView ? (
+            <button className="btn btn-outline-primary" onClick={() => navigate('/admin')}>
+              <i className="fas fa-arrow-left"></i> Back to Admin Dashboard
+            </button>
+          ) : (
+            <>
+              <button className="btn btn-outline-primary" onClick={() => navigate('/merchant/profile')}>
+                <i className="fas fa-user"></i> Profile
+              </button>
+              <button className="btn btn-outline-secondary" onClick={handleLogsClick}>
+                <i className="fas fa-history"></i> Activity Logs
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {adminView && (
+        <div className="admin-view-banner">
+          <span className="admin-view-label">
+            Admin View - Viewing Merchant #{merchantId}
+          </span>
+        </div>
+      )}
 
       {successMessage && (
         <div className="alert alert-success" role="alert">
@@ -735,226 +869,64 @@ const MerchantDashboard = () => {
         </div>
       )}
 
-    <div className="search-section">
-      <div className="search-row">
-        <div className="search-container">
-          <div className="search-input-wrapper">
-            <i className="fas fa-search search-icon"></i>
-            <input 
-              type="text" 
-              className="input-field"
-              placeholder="Search products or categories..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            
-            {searchTerm && (
-              <button 
-                className="clear-search" 
-                onClick={handleResetSearch}
-                aria-label="Clear search"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            )}
-          </div>
-
-          <div className="search-actions">
-            <button onClick={handleSearch} className="btn btn-primary">
-              <i className="fas fa-search"></i> Search
-            </button>
-            <button onClick={handleResetSearch} className="btn btn-secondary">
-              <i className="fas fa-undo"></i> Reset
+      {/* Product management UI shouldn't be visible to admin */}
+      {!adminView && (
+        <div className="product-management">
+          <div className="product-management-header">
+            <h3>Product Management</h3>
+            <button className="btn btn-success" onClick={toggleAddProductForm}>
+              <i className="fas fa-plus"></i> Add New Product
             </button>
           </div>
-        </div>
-
-
-        <div className="action-buttons">
-          <button className="btn btn-blue" onClick={toggleAddProductForm}>
-            <i className="fas fa-plus"></i> {showAddProductForm ? 'Cancel' : 'Add New Product'}
-          </button>
-          <button className="btn btn-outline" onClick={toggleUpdateForm}>
-            <i className="fas fa-edit"></i> {showUpdateForm ? 'Cancel' : 'Update a Product'}
-          </button>
-        </div>
-      </div>
-
-      <div className="category-filter">
-        <button 
-          className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
-          onClick={() => handleCategorySelect('all')}
-        >
-          All Products
-        </button>
-        {categories.map(category => (
-          <button 
-            key={category}
-            className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
-            onClick={() => handleCategorySelect(category)}
-          >
-            {category}
-          </button>
-        ))}
-      </div>
-    </div>
-
-      {showAddProductForm && (
-        <div className="add-product-form">
-          <h3><i className="fas fa-plus-circle"></i> Add New Product</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Product Name</label>
-              <input name="name" value={newProduct.name} onChange={handleInputChange} required />
-            </div>
-
-            <div className="form-group">
-              <label>Description</label>
-              <textarea name="description" value={newProduct.description} onChange={handleInputChange} required />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>Price (₹)</label>
-                <input type="number" name="price" value={newProduct.price} onChange={handleInputChange} required />
-              </div>
-
-              <div className="form-group">
-                <label>MRP (₹)</label>
-                <input type="number" name="mrp" value={newProduct.mrp} onChange={handleInputChange} required />
-              </div>
-
-              <div className="form-group">
-                <label>Stock</label>
-                <input type="number" name="stock" value={newProduct.stock} onChange={handleInputChange} required />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Business Category</label>
-              <input 
-                type="text" 
-                name="business_category" 
-                value={newProduct.business_category}
-                onChange={handleInputChange}
-                placeholder="Enter category name"
-                required 
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Product Image</label>
-              <input type="file" accept="image/*" onChange={handleImageChange} required />
-            </div>
-
-            <div className="form-buttons">
-              <button 
-                type="submit" 
-                className="btn btn-success" 
-                disabled={isAddingProduct}
-              >
-                {isAddingProduct ? 'Adding Product...' : 'Add Product'}
-              </button>
-            </div>
-          </form>
+          
+          {/* Rest of product management UI */}
         </div>
       )}
-
-      {showUpdateForm && (
-        <div className="update-product-form" style={styles.updateProductForm}>
-          <h3><i className="fas fa-edit"></i> Update Product</h3>
-          {selectedProduct ? (
-            <>
-              <p className="selected-product-info" style={styles.selectedProductInfo}>
-                <i className="fas fa-tag"></i> Updating product: <strong>{selectedProduct.name}</strong> (ID: {selectedProduct.product_id})
-              </p>
-              <form onSubmit={handleUpdateSubmit}>
-                <div className="form-group">
-                  <label>Product Name</label>
-                  <input
-                    type="text"
-                    name="product_name"
-                    value={updateProduct.product_name}
-                    onChange={(e) => setUpdateProduct({...updateProduct, product_name: e.target.value})}
-                    placeholder="Enter product name"
-                  />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.name}</small>
-                </div>
-                <div className="form-group">
-                  <label>Business Category</label>
-                  <input
-                    type="text"
-                    name="business_category"
-                    value={updateProduct.business_category}
-                    onChange={(e) => setUpdateProduct({...updateProduct, business_category: e.target.value})}
-                    placeholder="Enter business category"
-                  />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.business_category}</small>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Price (₹)</label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={updateProduct.price}
-                      onChange={(e) => setUpdateProduct({...updateProduct, price: e.target.value})}
-                      placeholder="Enter price"
-                    />
-                    <small className="form-text" style={styles.formText}>Current value: {selectedProduct.price}</small>
-                  </div>
-                  <div className="form-group">
-                    <label>MRP (₹)</label>
-                    <input
-                      type="number"
-                      name="mrp"
-                      value={updateProduct.mrp}
-                      onChange={(e) => setUpdateProduct({...updateProduct, mrp: e.target.value})}
-                      placeholder="Enter MRP"
-                    />
-                    <small className="form-text" style={styles.formText}>Current value: {selectedProduct.mrp}</small>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Stock</label>
-                  <input
-                    type="number"
-                    name="stock"
-                    value={updateProduct.stock}
-                    onChange={(e) => setUpdateProduct({...updateProduct, stock: e.target.value})}
-                    placeholder="Enter stock"
-                  />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.stock}</small>
-                </div>
-                <div className="form-group">
-                  <label>Description</label>
-                  <textarea
-                    name="description"
-                    value={updateProduct.description}
-                    onChange={(e) => setUpdateProduct({...updateProduct, description: e.target.value})}
-                    placeholder="Enter description"
-                  />
-                  <small className="form-text" style={styles.formText}>Current value: {selectedProduct.description}</small>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary">Update Product</button>
-                  <button type="button" className="btn btn-secondary" onClick={toggleUpdateForm}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </>
-          ) : (
-            <div className="product-selection-prompt">
-              <p><i className="fas fa-arrow-down"></i> Please select a product from the list below to update.</p>
-            </div>
-          )}
-        </div>
-      )}
-
+      
+      {/* Product listing should always be visible */}
       <div className="products-section">
-        <h3><i className="fas fa-boxes"></i> My Products</h3>
+        <div className="products-header">
+          <h3>Your Products</h3>
+          <div className="filters">
+            <div className="category-filter">
+              <select 
+                value={selectedCategory} 
+                onChange={(e) => handleCategorySelect(e.target.value)}
+                className="form-control"
+              >
+                <option value="all">All Categories</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            <div className="search-filter">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="form-control"
+              />
+              <button 
+                className="btn btn-outline-secondary"
+                onClick={handleSearch}
+              >
+                <i className="fas fa-search"></i>
+              </button>
+              {searchTerm && (
+                <button 
+                  className="btn btn-outline-secondary reset-btn"
+                  onClick={handleResetSearch}
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Product grid */}
         {products.length === 0 ? (
           <div className="no-products">
             <i className="fas fa-box-open"></i>
@@ -1016,6 +988,15 @@ const MerchantDashboard = () => {
                         }}
                       >
                         <i className="fas fa-edit"></i> Update
+                      </button>
+                      <button 
+                        className="btn btn-danger"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProduct(productToDisplay.product_id, productToDisplay.name);
+                        }}
+                      >
+                        <i className="fas fa-trash"></i> Delete
                       </button>
                     </div>
                   </div>
