@@ -1,0 +1,323 @@
+.merchant-profile-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.header-content h1 {
+  font-size: 2rem;
+  color: #333;
+  margin: 0;
+}
+
+.business-category {
+  color: #666;
+  margin: 0.5rem 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.edit-profile-btn, .logs-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-profile-btn {
+  background-color: #4a90e2;
+  color: white;
+}
+
+.logs-btn {
+  background-color: #34c759;
+  color: white;
+}
+
+.edit-profile-btn:hover {
+  background-color: #357abd;
+}
+
+.logs-btn:hover {
+  background-color: #2da94a;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background-color: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card h3 {
+  margin: 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0.5rem 0 0;
+}
+
+.logs-section {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.logs-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.close-logs-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0.5rem;
+  line-height: 1;
+}
+
+.close-logs-btn:hover {
+  color: #333;
+}
+
+.logs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.log-item {
+  background-color: white;
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.log-action {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+.log-timestamp {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.log-details {
+  color: #333;
+}
+
+.log-details p {
+  margin: 0.25rem 0;
+}
+
+.log-details strong {
+  color: #666;
+}
+
+.no-logs {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+}
+
+.edit-profile-form {
+  background-color: #f8f9fa;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-top: 2rem;
+}
+
+.edit-profile-form h2 {
+  margin: 0 0 1.5rem;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #666;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.save-btn, .cancel-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save-btn {
+  background-color: #4a90e2;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #357abd;
+}
+
+.cancel-btn:hover {
+  background-color: #c82333;
+}
+
+.profile-details {
+  margin-top: 2rem;
+}
+
+.details-section {
+  margin-bottom: 2rem;
+}
+
+.details-section h2 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.detail-item {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.detail-item label {
+  display: block;
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.detail-item p {
+  margin: 0;
+  color: #333;
+  font-weight: 500;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 6px;
+  margin: 1rem 0;
+}
+
+@media (max-width: 768px) {
+  .merchant-profile-container {
+    margin: 1rem;
+    padding: 1rem;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .edit-profile-btn, .logs-btn {
+    width: 100%;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+} 

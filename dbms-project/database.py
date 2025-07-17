@@ -2,20 +2,37 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
-from os import getenv
+import os
+import psycopg2
 
+# Load environment variables
 load_dotenv()
 
-# PostgreSQL Connection URL
-DATABASE_URL = getenv("DATABASE_URL")
 
-# Create database engine
-engine = create_engine(DATABASE_URL)
+# Get database URL from environment variables
+DATABASE_URL = os.getenv("DATABASE_URL")
+# DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db.tumthedhpsrcwdqjgpzi.supabase.co:5432/postgres")
 
-# Create a session factory
+
+# Create SQLAlchemy engine with connection testing
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,  # Enable connection testing
+    pool_recycle=3600,   # Recycle connections after 1 hour
+)
+
+# Test database connection
+try:
+    engine.connect()
+    print("Database connection successful!")
+except Exception as e:
+    print(f"Database connection failed: {e}")
+    raise
+
+# Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base class for models
+# Create Base class
 Base = declarative_base()
 
 # Dependency to get DB session
@@ -24,4 +41,4 @@ def get_db():
     try:
         yield db
     finally:
-        db.close()
+        db.close()                                                                                                                                              

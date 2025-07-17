@@ -1,71 +1,85 @@
-import React from 'react'
-import { useState } from 'react';
-import { Outlet, Link, useNavigate } from "react-router-dom";
-import { loginUser } from '../api/auth';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import './Login.css';
+import axios from 'axios';
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: ""
-  });
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
+    const { login } = useAuth();
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
 
-  const [error, setError] = useState(null);
-  const navigate = useNavigate();
+        try {
+            const result = await login(email, password);
+            if (result.success) {
+                // Set the authorization header for all future requests
+                axios.defaults.headers.common['Authorization'] = `Bearer ${result.token}`;
+                navigate('/dashboard');
+            } else {
+                setError(typeof result.error === 'string' ? result.error : 'Login failed. Please check your credentials.');
+            }
+        } catch (err) {
+            console.error('Login error:', err);
+            setError('An unexpected error occurred. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const data = await loginUser(formData);
-      localStorage.setItem("token", data.access_token); // Store token
-      navigate("/dashboard"); // Redirect after login
-    } catch (err) {
-      setError(err.detail || "Login failed");
-    }
-  };
-
-  return (
-    <div className='card m-2'>
-
-
-      <div className="card-body d-flex flex-column">
-        {error && <p style={{ color: "red" }}>{error}</p>}
-
-        <div>
-          <strong> Email: </strong>
-          <input type="text" className="form-control" placeholder="Your Email" aria-label="email" aria-describedby="basic-addon1" name='email' onChange={handleChange} />
+    return (
+        <div className="login-container">
+            <div className="login-box">
+                <h2>Login</h2>
+                {error && <div className="error-message">{error}</div>}
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label htmlFor="email">Email</label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            disabled={loading}
+                            placeholder="Enter your email"
+                            autoComplete="email"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="password">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            disabled={loading}
+                            placeholder="Enter your password"
+                            autoComplete="current-password"
+                        />
+                    </div>
+                    <button 
+                        type="submit" 
+                        className="login-button"
+                        disabled={loading}
+                    >
+                        {loading ? 'Logging in...' : 'Login'}
+                    </button>
+                </form>
+                <p className="signup-link">
+                    Don't have an account? <a href="/signup">Sign up</a>
+                </p>
+            </div>
         </div>
+    );
+};
 
-        <div>
-          <strong> Password: </strong>
-          <input type="text" className="form-control" placeholder="Your Password" aria-label="password" aria-describedby="basic-addon1" name='password' onChange={handleChange} />
-        </div>
-
-        <div>
-          <button className='btn btn-outline-primary' onClick={handleSubmit}> Login </button>
-        </div>
-
-        <div>
-          <Link to="/register"> Not registered? Sign up </Link>
-        </div>
-        {/* <h2>Login</h2>
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            <form onSubmit={handleSubmit}>
-                <input type="text" name="username" placeholder="Username" onChange={handleChange} required />
-                <input type="password" name="password" placeholder="Password" onChange={handleChange} required />
-                <button type="submit">Login</button>
-            </form> */}
-
-      </div>
-
-      <Outlet/>
-    </div>
-  )
-}
-
-export default Login
+export default Login;

@@ -1,0 +1,339 @@
+.order-confirmation-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.order-confirmation-content {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+}
+
+.success-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.success-icon {
+    font-size: 4rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.success-header h1 {
+    color: #2e7d32;
+    margin: 0 0 1rem;
+    font-size: 2rem;
+}
+
+.thank-you {
+    color: #666;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.order-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.order-info h2 {
+    color: #333;
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+}
+
+.order-id {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 0.5rem 0;
+}
+
+.order-date {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 0.5rem 0;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.order-date .label {
+    font-weight: 600;
+    display: inline-block;
+    min-width: 100px;
+}
+
+.payment-confirmation {
+    margin: 1rem 0;
+    padding: 12px 16px;
+    background-color: #e3f2fd;
+    border-radius: 8px;
+    border-left: 4px solid #1976d2;
+}
+
+.payment-success {
+    color: #1976d2;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.payment-success strong {
+    font-weight: 600;
+}
+
+.payment-mode,
+.order-total {
+    margin: 0.5rem 0;
+    font-size: 1.1rem;
+}
+
+.label {
+    color: #666;
+    margin-right: 0.5rem;
+}
+
+.reward-points {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px dashed #ddd;
+}
+
+.reward-points h3 {
+    color: #f57c00;
+    margin: 0 0 0.5rem;
+    font-size: 1.2rem;
+}
+
+.reward-points p {
+    color: #666;
+    margin: 0;
+}
+
+.reward-conversion {
+    margin-top: 10px;
+    padding: 12px 15px;
+    background-color: #e8f5e9;
+    border-radius: 8px;
+    border-left: 4px solid #4CAF50;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #333;
+}
+
+.reward-conversion strong {
+    color: #2e7d32;
+    font-weight: 600;
+}
+
+.wallet-update-status {
+    margin-top: 15px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.wallet-update-status.completed {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+}
+
+.wallet-update-status.pending {
+    background-color: #fff8e1;
+    border: 1px solid #ffe082;
+}
+
+.wallet-update-status p {
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.status-icon {
+    margin-right: 10px;
+    font-size: 1.2rem;
+}
+
+.status-text {
+    font-weight: 500;
+}
+
+.wallet-update-status.completed .status-text {
+    color: #2e7d32;
+}
+
+.wallet-update-status.pending .status-text {
+    color: #f57c00;
+}
+
+.reward-value {
+    margin-top: 8px !important;
+    padding: 8px 12px;
+    background-color: #e8f5e9;
+    border-radius: 6px;
+    border-left: 3px solid #4CAF50;
+    font-size: 0.95rem;
+}
+
+.reward-value strong {
+    color: #2e7d32;
+}
+
+.auto-conversion-info {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f3e5f5;
+    border-radius: 8px;
+    border: 1px solid #ce93d8;
+}
+
+.auto-conversion-info h3 {
+    color: #7b1fa2;
+    margin: 0 0 0.8rem;
+    font-size: 1.2rem;
+}
+
+.auto-conversion-info p {
+    color: #666;
+    margin: 0 0 0.8rem;
+}
+
+.auto-conversion-info ul {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: #666;
+}
+
+.auto-conversion-info li {
+    margin: 0.5rem 0;
+}
+
+.auto-conversion-notice {
+    margin-top: 8px !important;
+    padding: 8px 12px;
+    background-color: #e8f5e9;
+    border-radius: 6px;
+    border-left: 3px solid #4CAF50;
+    font-size: 0.95rem;
+}
+
+.auto-conversion-notice strong {
+    color: #2e7d32;
+}
+
+.cod-note {
+    color: #f57c00;
+    font-size: 0.9rem;
+    margin: 1rem 0 0;
+    font-style: italic;
+}
+
+.next-steps {
+    margin-bottom: 2rem;
+}
+
+.next-steps h2 {
+    color: #333;
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+}
+
+.action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.action-buttons button {
+    padding: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-shopping {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.back-shopping:hover {
+    background: #c8e6c9;
+}
+
+.view-orders {
+    background: #2e7d32;
+    color: white;
+}
+
+.view-orders:hover {
+    background: #1b5e20;
+}
+
+.dashboard-update {
+    background: #fff3e0;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.dashboard-update h2 {
+    color: #333;
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+}
+
+.dashboard-update p {
+    color: #666;
+    margin: 0 0 1rem;
+}
+
+.dashboard-update ul {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: #666;
+}
+
+.dashboard-update li {
+    margin: 0.5rem 0;
+}
+
+.reward-update {
+    color: #f57c00;
+    font-weight: 500;
+    margin-top: 1rem;
+}
+
+.order-confirmation-loading,
+.order-confirmation-error {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    font-size: 1.2rem;
+}
+
+.order-confirmation-error {
+    color: #d32f2f;
+}
+
+@media (max-width: 600px) {
+    .order-confirmation-content {
+        padding: 1.5rem;
+    }
+
+    .action-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .success-icon {
+        font-size: 3rem;
+    }
+
+    .success-header h1 {
+        font-size: 1.5rem;
+    }
+} 

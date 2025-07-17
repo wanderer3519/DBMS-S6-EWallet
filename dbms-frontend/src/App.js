@@ -1,39 +1,159 @@
-import Dashboard from './components/Dashboard';
-import NoPage from './components/NoPage';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Container } from 'react-bootstrap';
+import Navbar from './components/Navbar';
 import Login from './components/Login';
-import Register from './components/Register';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Signup from './components/Signup';
+import Dashboard from './components/Dashboard';
+import Products from './components/Products';
+import Cart from './components/Cart';
+import Checkout from './components/Checkout';
+import OrderConfirmation from './components/OrderConfirmation';
+import MyOrders from './components/MyOrders';
+import MerchantDashboard from './components/MerchantDashboard';
+import MerchantLogin from './components/MerchantLogin';
+import MerchantSignup from './components/MerchantSignup';
+import AdminDashboard from './components/AdminDashboard';
+import AdminLogin from './components/AdminLogin';
+import AdminSignup from './components/AdminSignup';
+import MerchantLogs from './components/MerchantLogs';
+import ProductDetails from './components/ProductDetails';
+import MerchantProfile from './components/MerchantProfile';
+import UserProfile from './components/UserProfile';
+import RewardsConversion from './components/RewardsConversion';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Topup from './components/Topup';
 
+// PrivateRoute component checks if the user is logged in and if they have the correct role to access the route
+const PrivateRoute = ({ children, roles }) => {
+  const { user } = useAuth(); // Access user data from context
+  const location = useLocation();
+
+  // If the user is not logged in, redirect them to the appropriate login page
+  if (!user) {
+    console.log("No user found, redirecting to login");
+    // Redirect based on the attempted route
+    if (location.pathname.startsWith('/admin')) {
+      return <Navigate to="/admin/login" state={{ from: location }} replace />;
+    } else if (location.pathname.startsWith('/merchant')) {
+      return <Navigate to="/merchant/login" state={{ from: location }} replace />;
+    } else {
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+  }
+
+  // If roles are provided, check if the user has the correct role
+  if (roles && !roles.includes(user.role)) {
+    console.log(`User role ${user.role} doesn't match required roles:`, roles);
+    // Redirect user based on their role
+    if (user.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    } else if (user.role === 'merchant') {
+      return <Navigate to="/merchant" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  // If all checks pass, render the requested component
+  return children;
+};
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={
-          <div className='container-fluid m-2'>
-            <Login />
-          </div>
-        }/>
+    <AuthProvider>
+      <Router>
+        <Navbar />
+        <Container className="mt-4">
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/merchant/login" element={<MerchantLogin />} />
+            <Route path="/merchant/signup" element={<MerchantSignup />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/signup" element={<AdminSignup />} />
+            <Route path="/products" element={<Products />} />
+            <Route path="/products/:productId" element={<ProductDetails />} />
+            
+            {/* Home route - redirects to user dashboard */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            {/* Protected User Routes */}
+            <Route path="/dashboard" element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/cart" element={
+              <PrivateRoute>
+                <Cart />
+              </PrivateRoute>
+            } />
+            <Route path="/checkout" element={
+              <PrivateRoute allowedRoles={['user']}>
+                {/* <Checkout /> */}  
+                <Checkout />
+              </PrivateRoute>
+            } />
+            <Route path="/order-confirmation/:orderId" element={
+              <PrivateRoute allowedRoles={['user']}>
+                <OrderConfirmation />
+              </PrivateRoute>
+            } />
+            <Route path="/orders" element={
+              <PrivateRoute>
+                <MyOrders />
+              </PrivateRoute>
+            } />
+            <Route path="/profile" element={
+              <PrivateRoute>
+                <UserProfile />
+              </PrivateRoute>
+            } />
+            <Route path="/top-up" element={
+              <PrivateRoute>
+                <Topup />
+              </PrivateRoute>
+            } />
+            <Route path="/dashboard/conversion" element={
+              <PrivateRoute>
+                <RewardsConversion />
+              </PrivateRoute>
+            } />
 
-        <Route path='/dashboard' element={
-          <div className='container-fluid m-2'>
-            <Dashboard />
-          </div>
-        } />
-        
-        <Route path='/register' element={
-          <div className='container-fluid m-2'>
-            <Register />
-          </div>
-        } />
-        
-        <Route path="*" element={
-          <div className='container-fluid m-2'>
-            <NoPage />
-          </div>
-        } />
-      </Routes>
-    </BrowserRouter>
+            {/* Protected Merchant Routes */}
+            <Route path="/merchant" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/merchant/dashboard" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/merchant/logs" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantLogs />
+              </PrivateRoute>
+            } />
+            <Route path="/merchant/profile" element={
+              <PrivateRoute roles={['merchant']}>
+                <MerchantProfile />
+              </PrivateRoute>
+            } />
+            
+            {/* Protected Admin Routes */}
+            <Route path="/admin" element={
+              <PrivateRoute roles={['admin']}>
+                <AdminDashboard />
+              </PrivateRoute>
+            } />
+          </Routes>
+        </Container>
+      </Router>
+    </AuthProvider>
   );
 }
 
