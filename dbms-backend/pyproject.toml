@@ -1,0 +1,73 @@
+[project]
+name = "dbms-backend"
+version = "0.1.0"
+description = "DBMS E wallet project backend"
+authors = [
+    {name = "Krish_Raziel19",email = "112201013@smail.iitpkd.ac.in"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi (>=0.116.1,<0.117.0)",
+    "sqlalchemy (>=2.0.41,<3.0.0)",
+    "pydantic (>=2.11.7,<3.0.0)",
+    "passlib (>=1.7.4,<2.0.0)",
+    "jwt (>=1.4.0,<2.0.0)",
+    "aiofiles (>=24.1.0,<25.0.0)",
+    "dotenv (>=0.9.9,<0.10.0)",
+    "psycopg2 (>=2.9.10,<3.0.0)"
+]
+
+[tool.poetry]
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.12.3"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]                                                                                                                                                                                                                                   
+line-length = 88                                                                                                                                                                                                                              
+exclude = [                                                                                                                                                                                                                                   
+    ".bzr",                                                                                                                                                                                                                                   
+    ".direnv",                                                                                                                                                                                                                                
+    ".eggs",                                                                                                                                                                                                                                  
+    ".git",                                                                                                                                                                                                                                   
+    ".hg",                                                                                                                                                                                                                                    
+    ".mypy_cache",                                                                                                                                                                                                                            
+    ".nox",                                                                                                                                                                                                                                   
+    ".pants.d",                                                                                                                                                                                                                               
+    ".pytype",                                                                                                                                                                                                                                
+    ".ruff_cache",                                                                                                                                                                                                                            
+    ".svn",                                                                                                                                                                                                                                   
+    ".venv",                                                                                                                                                                                                                                  
+    "__pypackages__",                                                                                                                                                                                                                         
+    "_build",                                                                                                                                                                                                                                 
+    "buck-out",                                                                                                                                                                                                                               
+    "build",                                                                                                                                                                                                                                  
+    "dist",                                                                                                                                                                                                                                   
+    "node_modules",                                                                                                                                                                                                                           
+    "venv",                                                                                                                                                                                                                                   
+]                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                              
+[tool.ruff.lint]                                                                                                                                                                                                                              
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # Pyflakes
+    "B",    # flake8-bugbear
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "TID",  # tidy
+    "T20",  # Enforce no print statements
+]
+ignore = [
+    "E501", "B008"
+]
+
+[tool.ruff.format]
+quote-style = "double"
+skip-magic-trailing-comma = false
+line-ending = "lf"
