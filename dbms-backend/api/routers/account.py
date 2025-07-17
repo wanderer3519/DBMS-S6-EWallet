@@ -97,7 +97,7 @@ def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)
     return transaction
 
 
-@router.get("/api/account/profile", response_model=UserProfileResponse)
+@router.get("/profile", response_model=UserProfileResponse)
 async def get_profile(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -115,7 +115,7 @@ async def get_profile(
     }
 
 
-@router.put("/api/account/profile", response_model=UserProfileResponse)
+@router.put("/profile", response_model=UserProfileResponse)
 async def update_profile(
     profile_update: UserUpdate,
     current_user: Users = Depends(get_current_user),
@@ -159,7 +159,7 @@ async def update_profile(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.put("/api/account/password")
+@router.put("/password")
 async def change_password(
     password_update: PasswordUpdate,
     current_user: Users = Depends(get_current_user),
@@ -178,7 +178,7 @@ async def change_password(
     return {"message": "Password updated successfully"}
 
 
-@router.post("/api/account/add-funds", response_model=dict)
+@router.post("/add-funds", response_model=dict)
 async def add_funds(
     amount: float = Body(...),
     payment_method: str = Body(...),
@@ -227,7 +227,7 @@ async def add_funds(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/api/account/rewards", response_model=dict)
+@router.get("/rewards", response_model=dict)
 async def get_rewards(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -260,7 +260,7 @@ async def get_rewards(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/api/account/redeem-rewards/{points}", response_model=dict)
+@router.post("/redeem-rewards/{points}", response_model=dict)
 async def redeem_rewards_path(
     points: int,
     current_user: Users = Depends(get_current_user),
@@ -357,7 +357,7 @@ async def redeem_rewards_path(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/api/account/upload-profile-image")
+@router.post("/upload-profile-image")
 async def upload_profile_image(
     file: UploadFile = File(...),
     current_user: Users = Depends(get_current_user),

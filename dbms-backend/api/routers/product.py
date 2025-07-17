@@ -120,7 +120,7 @@ async def upload_product_image(
     return {"url": f"/uploads/{filename}"}
 
 
-@router.get("/featured/products", response_model=list[ProductResponse])
+@router.get("/featured", response_model=list[ProductResponse])
 def get_featured_products(db: Session = Depends(get_db)):
     try:
         # Get products with discount (where price < mrp)
@@ -211,7 +211,7 @@ def get_featured_products(db: Session = Depends(get_db)):
         return sample_products
 
 
-@router.get("/products/category/{category}", response_model=list[ProductResponse])
+@router.get("/category/{category}", response_model=list[ProductResponse])
 async def get_products_by_category(category: str, db: Session = Depends(get_db)):
     try:
         products = (
@@ -228,7 +228,7 @@ async def get_products_by_category(category: str, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail="Error fetching products") from e
 
 
-@router.get("/products/categories", response_model=list[str])
+@router.get("/categories", response_model=list[str])
 async def get_categories(db: Session = Depends(get_db)):
     try:
         categories = db.query(Product.business_category).distinct().all()
@@ -239,7 +239,7 @@ async def get_categories(db: Session = Depends(get_db)):
 
 
 # Public product endpoints
-@router.get("/products", response_model=list[ProductResponse])
+@router.get("", response_model=list[ProductResponse])
 async def get_products(db: Session = Depends(get_db)):
     try:
         products = (
@@ -251,7 +251,7 @@ async def get_products(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Error fetching products") from e
 
 
-@router.get("/products/{product_id}", response_model=ProductResponse)
+@router.get("/{product_id}", response_model=ProductResponse)
 async def get_product(product_id: int, db: Session = Depends(get_db)):
     product = (
         db.query(Product)
@@ -262,4 +262,19 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
     )
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+@router.get("/{product_id}", response_model=ProductResponse)
+async def get_product_details(
+    product_id: int,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    product = db.query(Product).filter(Product.product_id == product_id).first()
+
+    if not product:
+        raise HTTPException(
+            status_code=404, detail="Product not found"
+        )
+
     return product

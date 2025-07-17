@@ -566,7 +566,7 @@ async def get_merchant_logs(
     return logs
 
 
-@router.get("/api/merchant/profile", response_model=dict)
+@router.get("/profile", response_model=dict)
 async def get_merchant_profile(
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db),
@@ -595,7 +595,7 @@ async def get_merchant_profile(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/api/merchant/stats", response_model=dict)
+@router.get("/stats", response_model=dict)
 async def get_merchant_stats(
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db),

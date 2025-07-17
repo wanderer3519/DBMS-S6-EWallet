@@ -9,7 +9,7 @@ from api.schemas import UserProfileResponse
 router = APIRouter(prefix="/api/user", tags=["User"])
 
 
-@router.get("/user/profile/{user_id}", response_model=UserProfileResponse)
+@router.get("/profile/{user_id}", response_model=UserProfileResponse)
 def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     # Get user details
     user = db.query(Users).filter(Users.user_id == user_id).first()
@@ -30,7 +30,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/user/me", response_model=dict)
+@router.get("/me", response_model=dict)
 async def get_current_user_info(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -55,7 +55,7 @@ async def get_current_user_info(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/user/balance", response_model=dict)
+@router.get("/balance", response_model=dict)
 async def get_user_balance(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):

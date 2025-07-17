@@ -12,10 +12,11 @@ from sqlalchemy import (
     Text,
 )
 
-from api.database import Base
+from sqlalchemy.orm import DeclarativeBase
 
-# Base = declarative_base()
 
+class Base(DeclarativeBase):
+    pass
 
 # Enums
 class UserRole(enum.Enum):

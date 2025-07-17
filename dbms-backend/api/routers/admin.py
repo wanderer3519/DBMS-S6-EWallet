@@ -312,7 +312,7 @@ async def get_admin_orders(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/api/admin/logs")
+@router.get("/logs")
 async def get_admin_logs(
     action: str = None,
     date: str = None,

@@ -3,7 +3,6 @@ import os
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -14,7 +13,6 @@ load_dotenv()
 
 # Get database URL from environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
-# DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db.tumthedhpsrcwdqjgpzi.supabase.co:5432/postgres")
 
 
 # Create SQLAlchemy engine with connection testing
@@ -32,17 +30,8 @@ except Exception as e:
     logger.info(f"Database connection failed: {e}")
     raise
 
-# Create SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create Base class
-Base = declarative_base()
-
-
-# Dependency to get DB session
 def get_db():
-    db = SessionLocal()
-    try:
+    with session_local() as db:
         yield db
-    finally:
-        db.close()
