@@ -4,7 +4,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user
+from api.auth_lib import get_current_user
 from api.database import get_db
 from api.models import (
     Account,
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/checkout", tags=["Checkout"])
 
 
 @router.post("", response_model=OrderResponse)
-async def process_checkout(
+def process_checkout(
     payment_method: str = Body(None),
     use_wallet: bool = Body(False),
     use_rewards: bool = Body(False),
@@ -222,7 +222,7 @@ async def process_checkout(
                 db.commit()
 
                 # Automatically convert reward points to wallet balance
-                # await convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
+                #  convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
 
         # Clear cart
         db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()

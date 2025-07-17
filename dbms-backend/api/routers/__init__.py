@@ -8,11 +8,10 @@ from . import (
     checkout,
     merchant,
     order,
-    process_withdrawal,
     product,
-    redeem_rewards,
     transaction,
     user,
+    withdrawal,
 )
 
 all_routers: list[APIRouter] = [
@@ -23,9 +22,8 @@ all_routers: list[APIRouter] = [
     checkout.router,
     merchant.router,
     order.router,
-    process_withdrawal.router,
+    withdrawal.router,
     product.router,
-    redeem_rewards.router,
     transaction.router,
-    user.router
+    user.router,
 ]

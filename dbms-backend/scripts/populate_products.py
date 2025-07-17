@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from api.auth import get_password_hash
+from api.auth_lib import get_password_hash
 from api.database import engine
 from api.models import Merchants, Product, ProductStatus, UserRole, Users, UserStatus
 

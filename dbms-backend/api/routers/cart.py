@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user
+from api.auth_lib import get_current_user
 from api.database import get_db
 from api.models import Cart, CartItem, Logs, Product, Users
 from api.schemas import CartItemCreate, CartResponse
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/cart", tags=["Cart"])
 
 
 @router.post("", response_model=CartResponse)
-async def add_to_cart(
+def add_to_cart(
     item: CartItemCreate,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -134,7 +134,7 @@ def get_cart(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/product/{product_id}")
-async def remove_from_cart(
+def remove_from_cart(
     product_id: int,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -174,7 +174,7 @@ async def remove_from_cart(
 
 
 @router.get("", response_model=CartResponse)
-async def get_current_user_cart(
+def get_current_user_cart(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     try:
@@ -230,7 +230,7 @@ async def get_current_user_cart(
 
 
 @router.put("/product/{product_id}", response_model=CartResponse)
-async def update_cart_item(
+def update_cart_item(
     product_id: int,
     quantity: int,
     current_user: Users = Depends(get_current_user),

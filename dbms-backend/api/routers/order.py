@@ -4,7 +4,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user
+from api.auth_lib import get_current_user
 from api.database import get_db
 from api.models import (
     Account,
@@ -22,14 +22,13 @@ from api.models import (
     TransactionType,
     Users,
 )
-from api.schemas import OrderCreate, OrderResponse
+from api.schemas import OrderResponse
 
 router = APIRouter(prefix="/api/order", tags=["Order"])
 
 
 @router.post("", response_model=OrderResponse)
 def create_order(
-    order: OrderCreate,
     payment_method: str = Body(...),
     use_wallet: bool = Body(False),
     use_rewards: bool = Body(False),
@@ -279,7 +278,7 @@ def get_user_orders(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
-async def get_order_details(
+def get_order_details(
     order_id: int,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -332,19 +331,6 @@ async def get_order_details(
         if reward_points_transaction:
             reward_points_earned = reward_points_transaction.points
 
-        # Get the automatic redemption transaction
-        _auto_redeem_log = (
-            db.query(Logs)
-            .filter(
-                Logs.user_id == current_user.user_id,
-                Logs.action == "auto_reward_redemption",
-                Logs.description.like(
-                    f"Automatically redeemed {reward_points_earned} points%"
-                ),
-            )
-            .first()
-        )
-
         return {
             "order_id": order.order_id,
             "user_id": order.user_id,
@@ -368,7 +354,7 @@ async def get_order_details(
 
 
 @router.get("/user/current", response_model=list[OrderResponse])
-async def get_current_user_orders(
+def get_current_user_orders(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     try:
@@ -459,8 +445,8 @@ async def get_current_user_orders(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/api/orders/{order_id}/cancel")
-async def cancel_order(
+@router.post("/{order_id}/cancel")
+def cancel_order(
     order_id: int,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),

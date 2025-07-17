@@ -1,12 +1,12 @@
-from sqlalchemy.orm import Session
-
 from datetime import datetime
-
-from api.models import Account, RewardPoints, RewardStatus, Logs
 from decimal import Decimal
 
+from sqlalchemy.orm import Session
 
-async def convert_reward_points_to_wallet(
+from api.models import Account, Logs, RewardPoints, RewardStatus
+
+
+def convert_reward_points_to_wallet(
     user_id: int, earned_points: int, db: Session
 ) -> float:
     """
@@ -53,4 +53,3 @@ async def convert_reward_points_to_wallet(
     db.add(log)
 
     return float(reward_value)
-

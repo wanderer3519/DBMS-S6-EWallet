@@ -33,15 +33,15 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-async def get_current_user(
+def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> Users:
     credentials_exception = HTTPException(
@@ -54,8 +54,8 @@ async def get_current_user(
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
-    except JWTError:
-        raise credentials_exception from JWTError
+    except JWTError as je:
+        raise credentials_exception from je
 
     user = db.query(Users).filter(Users.email == email).first()
     if user is None:
@@ -63,7 +63,7 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(
+def get_current_active_user(
     current_user: Users = Depends(get_current_user),
 ) -> Users:
     if not current_user.status == UserStatus.active:
@@ -71,7 +71,7 @@ async def get_current_active_user(
     return current_user
 
 
-async def get_current_admin_user(
+def get_current_admin_user(
     current_user: Users = Depends(get_current_active_user),
 ) -> Users:
     if current_user.role != UserRole.admin:
@@ -79,7 +79,7 @@ async def get_current_admin_user(
     return current_user
 
 
-async def get_current_merchant_user(
+def get_current_merchant_user(
     current_user: Users = Depends(get_current_active_user),
 ) -> Users:
     if current_user.role != UserRole.merchant:

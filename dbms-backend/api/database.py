@@ -1,5 +1,4 @@
 import logging
-import os
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
@@ -12,7 +11,7 @@ load_dotenv()
 
 
 # Get database URL from environment variables
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = "sqlite:///test.db"
 
 
 # Create SQLAlchemy engine with connection testing
@@ -31,6 +30,7 @@ except Exception as e:
     raise
 
 session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
     with session_local() as db:

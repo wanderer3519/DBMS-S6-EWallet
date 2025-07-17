@@ -1,50 +1,31 @@
 import logging
-import os
 from datetime import datetime, timedelta
 
-import jwt
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from passlib.context import CryptContext
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from api.auth import create_access_token, get_password_hash, verify_password
+from api.auth_lib import (
+    create_access_token,
+    get_current_admin_user,
+    get_password_hash,
+    verify_password,
+)
 from api.database import get_db
 from api.models import Account, AccountType, Logs, Order, UserRole, Users, UserStatus
-from api.schemas import AdminStats, OrderStatus, Token, UserCreate, UserLogin
+from api.schemas import AdminStats, Token, UserCreate, UserLogin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
 
-# JWT configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
 @router.get("/logs")
-def get_logs(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+def get_logs(
+    db: Session = Depends(get_db), _admin_user=Depends(get_current_admin_user)
+):
     """Get all logs for admin dashboard - public endpoint for testing"""
     try:
-        # Get user from token
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        user = db.query(Users).filter(Users.email == email).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-
-        if user.role != UserRole.admin:
-            raise HTTPException(status_code=403, detail="Not authorized")
-
         # Fetch logs with user names
         query = text("""
             SELECT l.log_id, l.user_id, u.full_name, l.action, l.description, l.created_at
@@ -76,71 +57,45 @@ def get_logs(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme))
 
 
 @router.get("/stats", response_model=AdminStats)
-async def get_api_admin_stats(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+def get_api_admin_stats(
+    db: Session = Depends(get_db),
+    _current_admin: Users = Depends(get_current_admin_user),
 ):
-    """Get admin dashboard statistics"""
+    """Get all logs for admin dashboard - protected endpoint"""
     try:
-        # Verify token and get user
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email = payload.get("sub")
-            if email is None:
-                raise HTTPException(
-                    status_code=401, detail="Invalid authentication credentials"
-                )
-        except jwt.PyJWTError as e:
-            raise HTTPException(
-                status_code=401, detail="Invalid authentication credentials"
-            ) from e
+        # current_admin is already validated
+        query = text("""
+            SELECT l.log_id, l.user_id, u.full_name, l.action, l.description, l.created_at
+            FROM logs l
+            JOIN users u ON l.user_id = u.user_id
+            ORDER BY l.created_at DESC
+        """)
+        result = db.execute(query).fetchall()
 
-        # Get user from database
-        user = db.query(Users).filter(Users.email == email).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        logs = [
+            {
+                "log_id": row[0],
+                "user_id": row[1],
+                "user_name": row[2],
+                "action": row[3],
+                "description": row[4],
+                "created_at": row[5],
+            }
+            for row in result
+        ]
 
-        # Check if user is admin
-        if user.role != UserRole.admin:
-            raise HTTPException(
-                status_code=403, detail="Only admin users can access this endpoint"
-            )
-
-        # Get total users
-        total_users = db.query(Users).count()
-
-        # Get total orders
-        total_orders = db.query(Order).count()
-
-        # Get total revenue
-        total_revenue = (
-            db.query(Order)
-            .filter(Order.status == OrderStatus.completed)
-            .with_entities(text("SUM(total_amount)"))
-            .scalar()
-            or 0
-        )
-
-        # Get active merchants
-        active_merchants = (
-            db.query(Users)
-            .filter(Users.role == UserRole.merchant, Users.status == UserStatus.active)
-            .count()
-        )
-
-        return {
-            "total_users": total_users,
-            "total_orders": total_orders,
-            "total_revenue": float(total_revenue),
-            "active_merchants": active_merchants,
-        }
+        return {"logs": logs}
     except Exception as e:
-        logger.info(f"Error in admin stats API: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.info(f"Error fetching logs: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching logs: {str(e)}",
+        ) from e
 
 
 # Admin specific endpoints
 @router.post("/signup", response_model=Token)
-async def admin_signup(user: UserCreate, db: Session = Depends(get_db)):
+def admin_signup(user: UserCreate, db: Session = Depends(get_db)):
     # Check if email already exists
     db_user = db.query(Users).filter(Users.email == user.email).first()
     if db_user:
@@ -255,35 +210,11 @@ def admin_login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.get("/orders")
-async def get_admin_orders(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+def get_admin_orders(
+    db: Session = Depends(get_db), _admin_user=Depends(get_current_admin_user)
 ):
     """Get all orders for admin dashboard"""
     try:
-        # Verify token and get user
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email = payload.get("sub")
-            if email is None:
-                raise HTTPException(
-                    status_code=401, detail="Invalid authentication credentials"
-                )
-        except jwt.PyJWTError as e:
-            raise HTTPException(
-                status_code=401, detail="Invalid authentication credentials"
-            ) from e
-
-        # Get user from database
-        user = db.query(Users).filter(Users.email == email).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # Check if user is admin
-        if user.role != UserRole.admin:
-            raise HTTPException(
-                status_code=403, detail="Only admin users can access this endpoint"
-            )
-
         # Join with users to get user details
         orders_with_users = (
             db.query(Order, Users.full_name.label("user_name"))
@@ -313,38 +244,14 @@ async def get_admin_orders(
 
 
 @router.get("/logs")
-async def get_admin_logs(
+def get_admin_logs(
     action: str = None,
     date: str = None,
-    token: str = Depends(oauth2_scheme),
+    _admin_user=Depends(get_current_admin_user),
     db: Session = Depends(get_db),
 ):
     """Get filtered logs for admin dashboard"""
     try:
-        # Verify token and get user
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email = payload.get("sub")
-            if email is None:
-                raise HTTPException(
-                    status_code=401, detail="Invalid authentication credentials"
-                )
-        except jwt.PyJWTError as e:
-            raise HTTPException(
-                status_code=401, detail="Invalid authentication credentials"
-            ) from e
-
-        # Get user from database
-        user = db.query(Users).filter(Users.email == email).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # Check if user is admin
-        if user.role != UserRole.admin:
-            raise HTTPException(
-                status_code=403, detail="Only admin users can access this endpoint"
-            )
-
         # Build query for logs
         query = (
             db.query(

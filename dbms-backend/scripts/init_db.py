@@ -17,9 +17,6 @@ def init_db():
         raise
 
 
-
-
-
 def check_tables():
     try:
         inspector = inspect(engine)

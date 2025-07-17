@@ -8,7 +8,7 @@ UPLOAD_DIR = "uploads/products"
 PROFILE_UPLOAD_DIR = "uploads/profiles"
 
 
-async def save_uploaded_file(file: UploadFile) -> str:
+def save_uploaded_file(file: UploadFile) -> str:
     """
     Save an uploaded file and return its relative path
     """
@@ -22,18 +22,20 @@ async def save_uploaded_file(file: UploadFile) -> str:
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
 
         # Save the file
-        content = await file.read()
-        async with aiofiles.open(file_path, "wb") as out_file:
-            await out_file.write(content)
+        content = file.read()
+        with aiofiles.open(file_path, "wb") as out_file:
+            out_file.write(content)
 
         # Return the relative path that can be used in URLs
         return f"/uploads/products/{unique_filename}"
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error saving file: {str(e)}"
+        ) from e
 
 
-async def save_profile_image(file: UploadFile, user_id: int) -> str:
+def save_profile_image(file: UploadFile, user_id: int) -> str:
     """
     Save a user profile image and return its relative path
     """
@@ -47,9 +49,9 @@ async def save_profile_image(file: UploadFile, user_id: int) -> str:
         file_path = os.path.join(PROFILE_UPLOAD_DIR, filename)
 
         # Save the file
-        content = await file.read()
-        async with aiofiles.open(file_path, "wb") as out_file:
-            await out_file.write(content)
+        content = file.read()
+        with aiofiles.open(file_path, "wb") as out_file:
+            out_file.write(content)
 
         # Return the relative path that can be used in URLs
         return f"/uploads/profiles/{filename}"
@@ -79,4 +81,3 @@ def delete_file(relative_path: str) -> bool:
         return False
     except Exception:
         return False
-

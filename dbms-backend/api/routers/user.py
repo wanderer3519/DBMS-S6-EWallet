@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user
+from api.auth_lib import get_current_user
 from api.database import get_db
 from api.models import Account, Users
 from api.schemas import UserProfileResponse
@@ -31,7 +31,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=dict)
-async def get_current_user_info(
+def get_current_user_info(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     try:
@@ -56,7 +56,7 @@ async def get_current_user_info(
 
 
 @router.get("/balance", response_model=dict)
-async def get_user_balance(
+def get_user_balance(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     try:

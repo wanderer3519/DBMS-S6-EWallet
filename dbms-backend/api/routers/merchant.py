@@ -1,18 +1,18 @@
 import logging
 from datetime import datetime
 
-from database import get_db
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
-from api.auth import (
+from api.auth_lib import (
     create_access_token,
     get_current_merchant_user,
     get_current_user,
     get_password_hash,
     verify_password,
 )
+from api.database import get_db
 from api.file_upload import delete_file, save_uploaded_file
 from api.models import Logs, Merchants, Product, ProductStatus, UserRole, Users
 from api.schemas import ProductResponse, Token, UserCreate, UserLogin, UserStatus
@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/merchant", tags=["Merchant"])
 
 
-@router.get("/products", response_model=list[ProductResponse])
-async def get_merchant_products(
+@router.get("/product/all", response_model=list[ProductResponse])
+def get_merchant_products(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     if current_user.role != UserRole.merchant:
@@ -37,10 +37,10 @@ async def get_merchant_products(
     return products
 
 
-@router.post("/products/upload-image")
-async def upload_product_image(
+@router.post("/product/upload-image")
+def upload_product_image(
     file: UploadFile = File(...),
-    current_user: Users = Depends(get_current_merchant_user),
+    _current_user: Users = Depends(get_current_merchant_user),
 ):
     try:
         # Validate file type
@@ -48,15 +48,15 @@ async def upload_product_image(
             raise HTTPException(status_code=400, detail="File must be an image")
 
         # Save the file
-        image_url = await save_uploaded_file(file)
+        image_url = save_uploaded_file(file)
 
         return {"image_url": image_url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/products", response_model=ProductResponse)
-async def create_merchant_product(
+@router.post("/product", response_model=ProductResponse)
+def create_merchant_product(
     name: str = Form(...),
     description: str = Form(...),
     price: float = Form(...),
@@ -75,12 +75,6 @@ async def create_merchant_product(
                 Merchants.user_id == current_user.user_id,
                 Merchants.business_category == business_category,
             )
-            .first()
-        )
-
-        merchant2 = (
-            db.query(Merchants)
-            .filter(Merchants.user_id == current_user.user_id)
             .first()
         )
 
@@ -112,7 +106,7 @@ async def create_merchant_product(
             logger.info(f"Error resetting sequence: {e}")
 
         # Save the image
-        image_url = await save_uploaded_file(image)
+        image_url = save_uploaded_file(image)
 
         # Create product with current timestamp
         current_time = datetime.now()
@@ -143,8 +137,8 @@ async def create_merchant_product(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.put("/products/{product_id}", response_model=ProductResponse)
-async def update_merchant_product(
+@router.put("/product/{product_id}", response_model=ProductResponse)
+def update_merchant_product(
     product_id: int,
     request: Request,
     name: str | None = Form(None),
@@ -186,7 +180,7 @@ async def update_merchant_product(
         # If this is a JSON request, parse the JSON body
         if is_json:
             try:
-                json_data = await request.json()
+                json_data = request.json()
                 name = json_data.get("name", name)
                 description = json_data.get("description", description)
                 price = json_data.get("price", price)
@@ -219,10 +213,10 @@ async def update_merchant_product(
         if image is not None and image.filename:
             # Delete old image if exists
             if product.image_url:
-                await delete_file(product.image_url)
+                delete_file(product.image_url)
 
             # Save new image
-            product.image_url = await save_uploaded_file(image)
+            product.image_url = save_uploaded_file(image)
 
         # Update timestamp
         product.updated_at = datetime.now()
@@ -250,161 +244,19 @@ async def update_merchant_product(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.delete("/products/{product_id}")
-async def delete_merchant_product(
+@router.delete("/product/{product_id}")
+def delete_product(
     product_id: int,
-    current_user: Users = Depends(get_current_user),
+    current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db),
 ):
+    # Get merchant record
     if current_user.role != "merchant":
         raise HTTPException(
             status_code=403,
             detail="Only merchants can delete products",
         )
 
-    db_product = (
-        db.query(Product)
-        .filter(
-            Product.product_id == product_id,
-            Product.merchant_id == current_user.user_id,
-        )
-        .first()
-    )
-
-    if not db_product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    db.delete(db_product)
-    db.commit()
-    return {"message": "Product deleted successfully"}
-
-
-# Product Management Endpoints
-@router.post("/products", response_model=ProductResponse)
-async def create_product(
-    name: str = Form(...),
-    description: str = Form(...),
-    price: float = Form(...),
-    mrp: float = Form(...),
-    stock: int = Form(...),
-    image: UploadFile = File(...),
-    current_user: Users = Depends(get_current_merchant_user),
-    db: Session = Depends(get_db),
-):
-    try:
-        # Get merchant record
-        merchant = (
-            db.query(Merchants)
-            .filter(Merchants.user_id == current_user.user_id)
-            .first()
-        )
-        if not merchant:
-            raise HTTPException(status_code=404, detail="Merchant profile not found")
-
-        # Save the image
-        image_url = await save_uploaded_file(image, "products")
-
-        # Create product
-        product = Product(
-            merchant_id=merchant.merchant_id,
-            name=name,
-            description=description,
-            price=price,
-            mrp=mrp,
-            stock=stock,
-            image_url=image_url,
-            status=ProductStatus.active,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-        )
-        db.add(product)
-        db.commit()
-        db.refresh(product)
-        return product
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-
-@router.get("/products", response_model=list[ProductResponse])
-async def get_merchant_products(
-    current_user: Users = Depends(get_current_merchant_user),
-    db: Session = Depends(get_db),
-):
-    merchant = (
-        db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
-    )
-    if not merchant:
-        raise HTTPException(status_code=404, detail="Merchant profile not found")
-
-    products = (
-        db.query(Product).filter(Product.merchant_id == merchant.merchant_id).all()
-    )
-    return products
-
-
-@router.put("/merchant/products/{product_id}", response_model=ProductResponse)
-async def update_product(
-    product_id: int,
-    name: str | None = Form(None),
-    description: str | None = Form(None),
-    price: float | None = Form(None),
-    mrp: float | None = Form(None),
-    stock: int | None = Form(None),
-    image: UploadFile | None = File(None),
-    current_user: Users = Depends(get_current_merchant_user),
-    db: Session = Depends(get_db),
-):
-    # Get merchant record
-    merchant = (
-        db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
-    )
-    if not merchant:
-        raise HTTPException(status_code=404, detail="Merchant profile not found")
-
-    # Get product
-    product = (
-        db.query(Product)
-        .filter(
-            Product.product_id == product_id,
-            Product.merchant_id == merchant.merchant_id,
-        )
-        .first()
-    )
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    # Update fields if provided
-    if name is not None:
-        product.name = name
-    if description is not None:
-        product.description = description
-    if price is not None:
-        product.price = price
-    if mrp is not None:
-        product.mrp = mrp
-    if stock is not None:
-        product.stock = stock
-    if image is not None:
-        # Delete old image if exists
-        if product.image_url:
-            await delete_file(product.image_url)
-        # Save new image
-        product.image_url = await save_uploaded_file(image, "products")
-
-    product.updated_at = datetime.now()
-    db.commit()
-    db.refresh(product)
-    return product
-
-
-@router.delete("/products/{product_id}")
-async def delete_product(
-    product_id: int,
-    current_user: Users = Depends(get_current_merchant_user),
-    db: Session = Depends(get_db),
-):
-    # Get merchant record
     merchant = (
         db.query(Merchants).filter(Merchants.user_id == current_user.user_id).first()
     )
@@ -425,7 +277,7 @@ async def delete_product(
 
     # Delete product image if exists
     if product.image_url:
-        await delete_file(product.image_url)
+        delete_file(product.image_url)
 
     # Delete product
     db.delete(product)
@@ -435,7 +287,7 @@ async def delete_product(
 
 # Merchant Signup and Login
 @router.post("/signup", response_model=Token)
-async def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
+def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user already exists
     db_user = db.query(Users).filter(Users.email == user.email).first()
     if db_user:
@@ -514,7 +366,7 @@ def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
 
 # Merchant Product Management
 @router.get("/{merchant_id}/logs")
-async def get_merchant_logs(
+def get_merchant_logs(
     merchant_id: int,
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db),
@@ -567,7 +419,7 @@ async def get_merchant_logs(
 
 
 @router.get("/profile", response_model=dict)
-async def get_merchant_profile(
+def get_merchant_profile(
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db),
 ):
@@ -596,7 +448,7 @@ async def get_merchant_profile(
 
 
 @router.get("/stats", response_model=dict)
-async def get_merchant_stats(
+def get_merchant_stats(
     current_user: Users = Depends(get_current_merchant_user),
     db: Session = Depends(get_db),
 ):
@@ -635,7 +487,7 @@ async def get_merchant_stats(
 
 
 @router.put("/profile", response_model=dict)
-async def update_merchant_profile(
+def update_merchant_profile(
     business_name: str | None = Form(None),
     business_category: str | None = Form(None),
     contact: str | None = Form(None),

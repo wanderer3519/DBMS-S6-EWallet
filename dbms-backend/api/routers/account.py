@@ -1,11 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
 
-from database import get_db
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user, get_password_hash, verify_password
+from api.auth_lib import get_current_user, get_password_hash, verify_password
+from api.database import get_db
 from api.file_upload import delete_file, save_profile_image
 from api.models import Account, Logs, RewardPoints, RewardStatus, Transactions, Users
 from api.schemas import (
@@ -97,8 +97,8 @@ def top_up_account(account_id: int, amount: float, db: Session = Depends(get_db)
     return transaction
 
 
-@router.get("/profile", response_model=UserProfileResponse)
-async def get_profile(
+@router.get("/user/profile", response_model=UserProfileResponse)
+def get_profile(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     # Get user accounts
@@ -115,8 +115,8 @@ async def get_profile(
     }
 
 
-@router.put("/profile", response_model=UserProfileResponse)
-async def update_profile(
+@router.put("/user/profile", response_model=UserProfileResponse)
+def update_profile(
     profile_update: UserUpdate,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -160,7 +160,7 @@ async def update_profile(
 
 
 @router.put("/password")
-async def change_password(
+def change_password(
     password_update: PasswordUpdate,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -179,7 +179,7 @@ async def change_password(
 
 
 @router.post("/add-funds", response_model=dict)
-async def add_funds(
+def add_funds(
     amount: float = Body(...),
     payment_method: str = Body(...),
     current_user: Users = Depends(get_current_user),
@@ -228,7 +228,7 @@ async def add_funds(
 
 
 @router.get("/rewards", response_model=dict)
-async def get_rewards(
+def get_rewards(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     try:
@@ -261,7 +261,7 @@ async def get_rewards(
 
 
 @router.post("/redeem-rewards/{points}", response_model=dict)
-async def redeem_rewards_path(
+def redeem_rewards_path(
     points: int,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -358,7 +358,7 @@ async def redeem_rewards_path(
 
 
 @router.post("/upload-profile-image")
-async def upload_profile_image(
+def upload_profile_image(
     file: UploadFile = File(...),
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -374,7 +374,7 @@ async def upload_profile_image(
             delete_file(old_image_path)
 
         # Save the new profile image
-        image_url = await save_profile_image(file, current_user.user_id)
+        image_url = save_profile_image(file, current_user.user_id)
 
         # Update user profile in database
         current_user.profile_image = image_url

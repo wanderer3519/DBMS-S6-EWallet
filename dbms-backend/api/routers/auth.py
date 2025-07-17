@@ -1,14 +1,13 @@
 import logging
 from datetime import datetime
 
-from database import get_db
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import create_access_token, get_password_hash
-from models import Account, AccountType, Logs, Users, UserStatus
-from schemas import Token, UserCreate, UserLogin
 from sqlalchemy.orm import Session
 
-from api.auth import verify_password
+from api.auth_lib import create_access_token, get_password_hash, verify_password
+from api.database import get_db
+from api.models import Account, AccountType, Logs, Users, UserStatus
+from api.schemas import Token, UserCreate, UserLogin
 
 logger = logging.getLogger(__name__)
 

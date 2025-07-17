@@ -7,16 +7,15 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Integer,
-    PrimaryKeyConstraint,
     String,
     Text,
 )
-
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
     pass
+
 
 # Enums
 class UserRole(enum.Enum):
@@ -141,7 +140,7 @@ class RewardPoints(Base):
 class Merchants(Base):
     __tablename__ = "merchants"
 
-    merchant_id = Column(Integer, autoincrement=True)
+    merchant_id = Column(Integer, autoincrement=True, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.user_id"))
     business_name = Column(String)
     business_category = Column(String)
@@ -151,7 +150,7 @@ class Merchants(Base):
     contact = Column(String(12))
     updated_at = Column(TIMESTAMP)
 
-    __table_args__ = (PrimaryKeyConstraint("merchant_id", "business_category"),)
+    # __table_args__ = (PrimaryKeyConstraint("merchant_id", "business_category"),)
 
 
 class Product(Base):

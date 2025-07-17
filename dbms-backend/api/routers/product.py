@@ -7,7 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user
+from api.auth_lib import get_current_user
 from api.database import get_db
 from api.models import Merchants, Product, ProductStatus, Users
 from api.schemas import ProductCreate, ProductResponse
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/product", tags=["Product"])
 
 
 @router.post("", response_model=ProductResponse)
-async def create_product(
+def create_product(
     product: ProductCreate, merchant_id: int, db: Session = Depends(get_db)
 ):
     try:
@@ -76,16 +76,6 @@ def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db))
     return products
 
 
-@router.get("/{product_id}", response_model=ProductResponse)
-async def get_product(product_id: int, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(Product.product_id == product_id).first()
-
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-
-    return product
-
-
 @router.get("/merchant/{merchant_id}", response_model=list[ProductResponse])
 def get_merchant_products(merchant_id: int, db: Session = Depends(get_db)):
     products = db.query(Product).filter(Product.merchant_id == merchant_id).all()
@@ -93,7 +83,7 @@ def get_merchant_products(merchant_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/upload-image")
-async def upload_product_image(
+def upload_product_image(
     file: UploadFile = File(...), current_user: Users = Depends(get_current_user)
 ):
     if current_user.role != "merchant":
@@ -212,7 +202,7 @@ def get_featured_products(db: Session = Depends(get_db)):
 
 
 @router.get("/category/{category}", response_model=list[ProductResponse])
-async def get_products_by_category(category: str, db: Session = Depends(get_db)):
+def get_products_by_category(category: str, db: Session = Depends(get_db)):
     try:
         products = (
             db.query(Product)
@@ -229,7 +219,7 @@ async def get_products_by_category(category: str, db: Session = Depends(get_db))
 
 
 @router.get("/categories", response_model=list[str])
-async def get_categories(db: Session = Depends(get_db)):
+def get_categories(db: Session = Depends(get_db)):
     try:
         categories = db.query(Product.business_category).distinct().all()
         return [category[0] for category in categories if category[0]]
@@ -240,7 +230,7 @@ async def get_categories(db: Session = Depends(get_db)):
 
 # Public product endpoints
 @router.get("", response_model=list[ProductResponse])
-async def get_products(db: Session = Depends(get_db)):
+def get_all_products(db: Session = Depends(get_db)):
     try:
         products = (
             db.query(Product).filter(Product.status == ProductStatus.active).all()
@@ -252,7 +242,7 @@ async def get_products(db: Session = Depends(get_db)):
 
 
 @router.get("/{product_id}", response_model=ProductResponse)
-async def get_product(product_id: int, db: Session = Depends(get_db)):
+def get_product(product_id: int, db: Session = Depends(get_db)):
     product = (
         db.query(Product)
         .filter(
@@ -262,19 +252,4 @@ async def get_product(product_id: int, db: Session = Depends(get_db)):
     )
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    return product
-
-@router.get("/{product_id}", response_model=ProductResponse)
-async def get_product_details(
-    product_id: int,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    product = db.query(Product).filter(Product.product_id == product_id).first()
-
-    if not product:
-        raise HTTPException(
-            status_code=404, detail="Product not found"
-        )
-
     return product
