@@ -41,6 +41,7 @@ export const handleAddToCart = async (productId, quantity = 1) => {
 };
 
 const Cart = () => {
+    const API_BASE_URL = 'http://localhost:8000';
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
