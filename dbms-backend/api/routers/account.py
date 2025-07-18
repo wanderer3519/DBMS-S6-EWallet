@@ -4,14 +4,13 @@ from decimal import Decimal
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from api.auth_lib import get_current_user, get_password_hash, verify_password
+from api.auth_lib import get_current_user
 from api.database import get_db
 from api.file_upload import delete_file, save_profile_image
 from api.models import Account, Logs, RewardPoints, RewardStatus, Transactions, Users
 from api.schemas import (
     AccountCreate,
     AccountResponse,
-    PasswordUpdate,
     TransactionResponse,
     TransactionStatus,
     TransactionType,
@@ -157,25 +156,6 @@ def update_profile(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.put("/password")
-def change_password(
-    password_update: PasswordUpdate,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    if not verify_password(
-        password_update.current_password, current_user.password_hash
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="Current password is incorrect",
-        )
-
-    current_user.password_hash = get_password_hash(password_update.new_password)
-    db.commit()
-    return {"message": "Password updated successfully"}
 
 
 @router.post("/add-funds", response_model=dict)

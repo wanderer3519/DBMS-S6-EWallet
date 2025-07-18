@@ -14,17 +14,19 @@ const MerchantLogs = () => {
     fetchLogs();
   }, []);
 
+  const API_BASE_URL = 'http://localhost:8000';
   const fetchLogs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const user = JSON.parse(localStorage.getItem('user'));
+      const merchant = JSON.parse(localStorage.getItem('user'));
       
-      if (!token || !user) {
+      if (!token || !merchant) {
         navigate('/merchant/login');
         return;
       }
 
-      const res = await axios.get(`http://localhost:8000/api/merchant/${user.merchant_id}/logs`, {
+      // might be an error
+      const res = await axios.get(`${API_BASE_URL}/api/merchant/${merchant.merchant_id}/logs`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'

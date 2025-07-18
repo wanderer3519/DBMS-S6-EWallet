@@ -70,12 +70,6 @@ def create_product(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("", response_model=list[ProductResponse])
-def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    products = db.query(Product).offset(skip).limit(limit).all()
-    return products
-
-
 @router.get("/merchant/{merchant_id}", response_model=list[ProductResponse])
 def get_merchant_products(merchant_id: int, db: Session = Depends(get_db)):
     products = db.query(Product).filter(Product.merchant_id == merchant_id).all()

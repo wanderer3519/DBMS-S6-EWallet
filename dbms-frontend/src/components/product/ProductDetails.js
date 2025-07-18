@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { handleAddToCart } from '../cart/Cart';
@@ -12,13 +12,15 @@ const ProductDetails = () => {
     const { productId } = useParams();
     const navigate = useNavigate();
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     useEffect(() => {
         fetchProductDetails();
     }, [productId]);
 
     const fetchProductDetails = async () => {
         try {
-            const response = await axios.get(`http://localhost:8000/products/${productId}`);
+            const response = await axios.get(`${API_BASE_URL}/api/product/${productId}`);
             setProduct(response.data);
             setLoading(false);
         } catch (error) {

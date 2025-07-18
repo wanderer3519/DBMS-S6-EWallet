@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ProductView.css';
@@ -10,11 +10,13 @@ const ProductView = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
 
+  const API_BASE_URL = 'http://localhost:8000';
+
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:8000/api/products/${productId}`, {
+        const response = await axios.get(`${API_BASE_URL}/api/product/${productId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -42,7 +44,7 @@ const ProductView = () => {
         return;
       }
 
-      await axios.post('http://localhost:8000/api/cart/add', {
+      await axios.post(`${API_BASE_URL}/api/cart`, {
         product_id: product.product_id,
         quantity: 1
       }, {

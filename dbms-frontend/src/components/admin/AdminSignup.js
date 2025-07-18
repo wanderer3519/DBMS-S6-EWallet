@@ -14,6 +14,8 @@ const AdminSignup = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  const API_BASE_URL = 'http://localhost:8000';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -26,7 +28,7 @@ const AdminSignup = () => {
     console.log('Admin signup attempt:', email);
 
     try {
-      const response = await axios.post('http://localhost:8000/admin/signup', {
+      const response = await axios.post(`${API_BASE_URL}/api/admin/signup`, {
         email: email,
         password: password,
         full_name: fullName,

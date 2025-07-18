@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import './MerchantProfile.css';
 
 const MerchantProfile = () => {
@@ -20,7 +19,8 @@ const MerchantProfile = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState([]);
-  const _navigate = useNavigate();
+
+  const API_BASE_URL = 'http://localhost:8000';
 
   useEffect(() => {
     fetchMerchantProfile();
@@ -29,7 +29,7 @@ const MerchantProfile = () => {
   const fetchMerchantProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8000/api/merchant/profile', {
+      const response = await axios.get(`${API_BASE_URL}/api/merchant/profile`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -54,7 +54,7 @@ const MerchantProfile = () => {
   const fetchMerchantStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8000/api/merchant/stats', {
+      const response = await axios.get(`${API_BASE_URL}/api/merchant/stats`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -70,7 +70,7 @@ const MerchantProfile = () => {
   const fetchMerchantLogs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:8000/api/merchant/${merchantData.merchant_id}/logs`, {
+      const response = await axios.get(`${API_BASE_URL}/api/merchant/${merchantData.merchant_id}/logs`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -102,7 +102,7 @@ const MerchantProfile = () => {
         formData.append('contact', editForm.contact);
       }
 
-      const response = await axios.put('http://localhost:8000/api/merchant/profile', formData, {
+      const response = await axios.put(`${API_BASE_URL}/api/merchant/profile`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'

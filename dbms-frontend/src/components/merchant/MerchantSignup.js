@@ -20,6 +20,8 @@ const MerchantSignup = () => {
         });
     };
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -32,7 +34,7 @@ const MerchantSignup = () => {
         try {
             const { _confirm_password, ...signupData } = formData;
 
-            const response = await axios.post('http://localhost:8000/merchant/signup', signupData);
+            const response = await axios.post(`${API_BASE_URL}/api/merchant/signup`, signupData);
             localStorage.setItem('token', response.data.access_token);
             navigate('/merchant/dashboard');
         } catch (err) {

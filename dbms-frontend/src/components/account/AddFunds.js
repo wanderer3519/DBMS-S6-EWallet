@@ -38,6 +38,7 @@ const AddFunds = () => {
         setShowPaymentForm(true);
         setError(null);
     };
+    const API_BASE_URL = 'http://localhost:8000';
 
     const handlePaymentSubmit = async (e) => {
         e.preventDefault();
@@ -52,8 +53,8 @@ const AddFunds = () => {
             }
 
             const { access_token } = JSON.parse(userData);
-            const response = await axios.post(
-                'http://localhost:8000/api/account/add-funds',
+            const _response = await axios.post(
+                `${API_BASE_URL}/api/account/add-funds`,
                 {
                     amount: parseFloat(amount),
                     payment_method: paymentMethod

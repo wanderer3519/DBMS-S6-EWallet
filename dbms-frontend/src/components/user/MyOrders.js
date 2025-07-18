@@ -32,6 +32,8 @@ const MyOrders = () => {
     const [cancelSuccess, setCancelSuccess] = useState(null);
     const navigate = useNavigate();
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     const fetchOrders = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
@@ -40,7 +42,7 @@ const MyOrders = () => {
                 return;
             }
 
-            const response = await axios.get('http://localhost:8000/api/orders', {
+            const response = await axios.get(`${API_BASE_URL}/api/order`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -331,7 +333,7 @@ const MyOrders = () => {
             }
             
             const response = await axios.post(
-                `http://localhost:8000/api/orders/${orderId}/cancel`,
+                `${API_BASE_URL}/api/order/${orderId}/cancel`,
                 {},
                 {
                     headers: {

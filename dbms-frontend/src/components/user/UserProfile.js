@@ -25,6 +25,8 @@ const UserProfile = () => {
     const [uploadingImage, setUploadingImage] = useState(false);
     const navigate = useNavigate();
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     // Load initial data when component mounts
     useEffect(() => {
         // Try to get user data from localStorage as a fallback
@@ -84,7 +86,7 @@ const UserProfile = () => {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             
             console.log('Fetching user profile...');
-            const response = await axios.get('http://localhost:8000/api/account/profile');
+            const response = await axios.get(`${API_BASE_URL}/api/account/user/profile`);
             console.log('Profile response:', response.data);
             
             // If we got data from the API, update the state
@@ -152,7 +154,7 @@ const UserProfile = () => {
                 if (token) {
                     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
                     await axios.put(
-                        'http://localhost:8000/api/account/profile',
+                        `${API_BASE_URL}/api/account/user/profile`,
                         editForm,
                         {
                             headers: {
@@ -202,8 +204,10 @@ const UserProfile = () => {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             
             console.log('Changing password...');
+            
+            // no such api
             await axios.put(
-                'http://localhost:8000/api/account/password',
+                `${API_BASE_URL}/api/user/password`,
                 {
                     current_password: passwordForm.current_password,
                     new_password: passwordForm.new_password
@@ -286,7 +290,7 @@ const UserProfile = () => {
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
             
             const response = await axios.post(
-                'http://localhost:8000/api/account/upload-profile-image',
+                `${API_BASE_URL}/api/account/upload-profile-image`,
                 formData,
                 {
                     headers: {

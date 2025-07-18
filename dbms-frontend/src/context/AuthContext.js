@@ -8,6 +8,8 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [_token, setToken] = useState(null);
 
+  const API_BASE_URL = 'http://localhost:8000';
+
   useEffect(() => {
     const initializeAuth = async () => {
       const storedToken = localStorage.getItem('token');
@@ -26,7 +28,7 @@ export const AuthProvider = ({ children }) => {
             // We'll validate the token by making a request to get the user profile
             try {
               // Get user profile endpoint determined by role
-              const endpoint = 'http://localhost:8000/api/account/profile';
+              const endpoint = `${API_BASE_URL}/api/account/user/profile`;
               
               const response = await axios.get(endpoint, {
                 headers: {
@@ -66,7 +68,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:8000/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         email,
         password
       });
@@ -115,7 +117,7 @@ export const AuthProvider = ({ children }) => {
 
   const merchantLogin = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:8000/merchant/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/merchant/login`, {
         email,
         password
       });
@@ -157,7 +159,7 @@ export const AuthProvider = ({ children }) => {
   const adminLogin = async (email, password) => {
     try {
       console.log('Admin login attempt with:', email);
-      const response = await axios.post('http://localhost:8000/admin/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/admin/login`, {
         email,
         password
       });

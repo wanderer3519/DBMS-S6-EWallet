@@ -8,13 +8,14 @@ export const calculateTotal = (items) => {
 };
 
 export const handleAddToCart = async (productId, quantity = 1) => {
+    const API_BASE_URL = 'http://localhost:8000';
     try {
         const token = localStorage.getItem('token');
         if (!token) {
             throw new Error('Please login to add items to cart');
         }
 
-        const response = await axios.post('http://localhost:8000/api/cart/add', {
+        const response = await axios.post(`${API_BASE_URL}/api/cart`, {
             product_id: productId,
             quantity: quantity
         }, {
@@ -54,7 +55,7 @@ const Cart = () => {
                 return;
             }
 
-            const response = await axios.get('http://localhost:8000/api/cart', {
+            const response = await axios.get(`${API_BASE_URL}/api/cart`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -74,10 +75,10 @@ const Cart = () => {
 
     const updateQuantity = async (productId, newQuantity) => {
         if (newQuantity < 1) return;
-        
+
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`http://localhost:8000/api/cart/${productId}`, 
+            await axios.put(`${API_BASE_URL}/api/cart/product/${productId}`,
                 { quantity: newQuantity },
                 {
                     headers: {
@@ -98,7 +99,7 @@ const Cart = () => {
     const removeItem = async (productId) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`http://localhost:8000/api/cart/${productId}`, {
+            await axios.delete(`${API_BASE_URL}/api/cart/product/${productId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -139,18 +140,18 @@ const Cart = () => {
         <div className="cart-container">
             <div className="cart-header">
                 <h1>Your Shopping Cart</h1>
-                <button 
+                <button
                     className="back-to-dashboard"
                     onClick={handleBackToDashboard}
                 >
                     ← Back to Dashboard
                 </button>
             </div>
-            
+
             {cartItems.length === 0 ? (
                 <div className="empty-cart">
                     <p>Your cart is empty</p>
-                    <button 
+                    <button
                         className="continue-shopping"
                         onClick={() => navigate('/dashboard')}
                     >
@@ -176,7 +177,7 @@ const Cart = () => {
                                         <p className="item-price">₹{item.price}</p>
                                     </div>
                                     <div className="item-quantity">
-                                        <button 
+                                        <button
                                             className="quantity-btn"
                                             onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
                                             disabled={item.quantity <= 1}
@@ -184,7 +185,7 @@ const Cart = () => {
                                             -
                                         </button>
                                         <span className="quantity-value">{item.quantity}</span>
-                                        <button 
+                                        <button
                                             className="quantity-btn"
                                             onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
                                         >
@@ -194,7 +195,7 @@ const Cart = () => {
                                     <div className="item-total">
                                         ₹{(item.price * item.quantity).toFixed(2)}
                                     </div>
-                                    <button 
+                                    <button
                                         className="remove-item"
                                         onClick={() => removeItem(item.product_id)}
                                     >
@@ -219,14 +220,14 @@ const Cart = () => {
                             <span>Total Amount</span>
                             <span>₹{total.toFixed(2)}</span>
                         </div>
-                        <button 
+                        <button
                             className="checkout-button"
                             onClick={handleCheckout}
                             disabled={cartItems.length === 0}
                         >
                             Proceed to Checkout
                         </button>
-                        <button 
+                        <button
                             className="continue-shopping"
                             onClick={() => navigate('/dashboard')}
                         >

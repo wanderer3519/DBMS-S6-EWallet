@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './MerchantDashboard.css';
@@ -45,7 +45,7 @@ const MerchantDashboard = () => {
     outOfStock: 0
   });
   const navigate = useNavigate();
-
+  const API_BASE_URL = 'http://localhost:8000';
   const styles = {
     updateProductForm: {
       marginTop: '20px',
@@ -128,7 +128,7 @@ const MerchantDashboard = () => {
       const token = localStorage.getItem('token');
       const _user = JSON.parse(localStorage.getItem('user'));
       
-      const response = await axios.get(`http://localhost:8000/api/merchant/profile`, {
+      const response = await axios.get(`${API_BASE_URL}/api/merchant/profile`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -151,7 +151,7 @@ const MerchantDashboard = () => {
         return;
       }
       
-      const res = await axios.get(`http://localhost:8000/api/merchant/products`, {
+      const res = await axios.get(`${API_BASE_URL}/api/merchant/product/all`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -197,7 +197,7 @@ const MerchantDashboard = () => {
         return;
       }
       
-      const res = await axios.get(`http://localhost:8000/api/products/${productId}`, {
+      const res = await axios.get(`${API_BASE_URL}/api/product/${productId}`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -291,7 +291,7 @@ const MerchantDashboard = () => {
       formData.append('business_category', newProduct.business_category);
       formData.append('image', newProduct.image);
 
-      const response = await axios.post('http://localhost:8000/api/merchant/products', formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/merchant/product`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -373,7 +373,7 @@ const MerchantDashboard = () => {
       
       setLoading(true); // Show loading state while fetching
       
-      const res = await axios.get(`http://localhost:8000/api/merchant/products`, {
+      const res = await axios.get(`${API_BASE_URL}/api/merchant/product/all`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -453,7 +453,7 @@ const MerchantDashboard = () => {
       
       // Send the update request
       const response = await axios.put(
-        `http://localhost:8000/api/merchant/products/${selectedProduct.product_id}`,
+        `${API_BASE_URL}/api/merchant/product/${selectedProduct.product_id}`,
         updateData,
         {
           headers: {
@@ -520,7 +520,7 @@ const MerchantDashboard = () => {
         return;
       }
       
-      const res = await axios.get(`http://localhost:8000/api/merchant/${user.user_id}/logs`, {
+      const res = await axios.get(`${API_BASE_URL}/api/merchant/${user.user_id}/logs`, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'

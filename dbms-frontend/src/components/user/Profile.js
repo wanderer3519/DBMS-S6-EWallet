@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Card, Form, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -16,6 +16,8 @@ const Profile = () => {
         confirm_password: ''
     });
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     useEffect(() => {
         const fetchProfile = async () => {
             if (!isAuthenticated || !user) {
@@ -24,7 +26,7 @@ const Profile = () => {
             }
 
             try {
-                const response = await axios.get(`http://localhost:8000/users/${user.user_id}`, {
+                const response = await axios.get(`${API_BASE_URL}/api/user/${user.user_id}`, {
                     headers: {
                         'Authorization': `Bearer ${user.access_token}`
                     }
@@ -56,7 +58,7 @@ const Profile = () => {
         }
 
         try {
-            await axios.post('http://localhost:8000/user/change-password', {
+            await axios.post(`${API_BASE_URL}/api/user/password`, {
                 current_password: passwordForm.current_password,
                 new_password: passwordForm.new_password
             }, {

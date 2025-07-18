@@ -353,6 +353,92 @@ def get_order_details(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("", response_model=list[OrderResponse])
+def get_all_orders(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        # Get all orders for current user
+        orders = (
+            db.query(Order)
+            .filter(Order.user_id == current_user.user_id)
+            .order_by(Order.created_at.desc())
+            .all()
+        )
+
+        all_order_data = []
+
+        for order in orders:
+            # Get order items
+            order_items = (
+                db.query(OrderItem).filter(OrderItem.order_id == order.order_id).all()
+            )
+
+            # Get product details for each item
+            items = []
+            for item in order_items:
+                product = (
+                    db.query(Product)
+                    .filter(Product.product_id == item.product_id)
+                    .first()
+                )
+                if product:
+                    items.append(
+                        {
+                            "order_item_id": item.order_item_id,
+                            "order_id": item.order_id,
+                            "product_id": item.product_id,
+                            "quantity": item.quantity,
+                            "price_at_time": float(item.price_at_time),
+                            "created_at": item.created_at,
+                            "name": product.name,
+                            "image_url": product.image_url,
+                        }
+                    )
+
+            # Get reward points earned for this order
+            reward_points_earned = 0
+            reward_points_transaction = (
+                db.query(RewardPoints)
+                .filter(
+                    RewardPoints.transaction_id == order.order_id,
+                    RewardPoints.user_id == current_user.user_id,
+                )
+                .first()
+            )
+
+            if reward_points_transaction:
+                reward_points_earned = reward_points_transaction.points
+
+            # Append order response
+            all_order_data.append(
+                {
+                    "order_id": order.order_id,
+                    "user_id": order.user_id,
+                    "account_id": order.account_id,
+                    "status": order.status,
+                    "total_amount": float(order.total_amount),
+                    "created_at": order.created_at,
+                    "updated_at": order.updated_at,
+                    "items": items,
+                    "reward_points_earned": reward_points_earned,
+                    "payment_method": order.payment_method,
+                    "wallet_amount": float(order.wallet_amount)
+                    if order.wallet_amount
+                    else 0.0,
+                    "reward_discount": float(order.reward_discount)
+                    if order.reward_discount
+                    else 0.0,
+                }
+            )
+
+        return all_order_data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/user/current", response_model=list[OrderResponse])
 def get_current_user_orders(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)

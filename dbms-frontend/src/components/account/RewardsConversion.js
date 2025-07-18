@@ -18,6 +18,8 @@ const RewardsConversion = () => {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     
+    const API_BASE_URL = 'http://localhost:8000';
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -41,7 +43,7 @@ const RewardsConversion = () => {
             setLoading(true);
             const token = localStorage.getItem('token');
             
-            const response = await axios.get('http://localhost:8000/api/account/rewards', {
+            const response = await axios.get(`${API_BASE_URL}/api/account/rewards`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -62,7 +64,7 @@ const RewardsConversion = () => {
         try {
             const token = localStorage.getItem('token');
             
-            const response = await axios.get('http://localhost:8000/user/balance', {
+            const response = await axios.get(`${API_BASE_URL}/api/user/balance`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -110,7 +112,7 @@ const RewardsConversion = () => {
             console.log("Will convert points:", points);
             
             // Call a separate API endpoint that I know works with the server
-            const response = await fetch(`http://localhost:8000/api/account/redeem-rewards/${points}`, {
+            const response = await fetch(`${API_BASE_URL}/api/account/redeem-rewards/${points}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

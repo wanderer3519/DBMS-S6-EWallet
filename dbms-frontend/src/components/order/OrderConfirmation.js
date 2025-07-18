@@ -35,6 +35,7 @@ const OrderConfirmation = () => {
         }
     }, [orderId]);
 
+    const API_BASE_URL = 'http://localhost:8000';
 
 
     // Get formatted payment method name
@@ -111,7 +112,7 @@ const OrderConfirmation = () => {
                 return;
             }
 
-            const response = await axios.get(`http://localhost:8000/api/orders/${orderId}`, {
+            const response = await axios.get(`${API_BASE_URL}/api/order/${orderId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'

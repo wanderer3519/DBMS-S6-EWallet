@@ -21,6 +21,8 @@ const AdminDashboard = () => {
     const navigate = useNavigate();
     const { user, _isAdmin } = useAuth();
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     useEffect(() => {
         console.log('Admin Dashboard: Current user:', user);
         
@@ -81,7 +83,7 @@ const AdminDashboard = () => {
             }
             
             console.log('Fetching logs...');
-            const response = await axios.get('http://localhost:8000/admin/logs', {
+            const response = await axios.get(`${API_BASE_URL}/api/admin/logs`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { date: dateFilter }
             });
@@ -104,7 +106,7 @@ const AdminDashboard = () => {
             }
             
             console.log('Fetching user logins...');
-            const response = await axios.get('http://localhost:8000/api/admin/logs', {
+            const response = await axios.get(`${API_BASE_URL}/api/admin/logs`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { action: 'user_login', date: dateFilter }
             });
@@ -127,7 +129,7 @@ const AdminDashboard = () => {
             }
             
             console.log('Fetching orders...');
-            const response = await axios.get('http://localhost:8000/api/admin/orders', {
+            const response = await axios.get(`${API_BASE_URL}/api/admin/orders`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -149,7 +151,7 @@ const AdminDashboard = () => {
             }
             
             console.log('Fetching stats...');
-            const response = await axios.get('http://localhost:8000/api/admin/stats', {
+            const response = await axios.get(`${API_BASE_URL}/api/admin/stats`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             

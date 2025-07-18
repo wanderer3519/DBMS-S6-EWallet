@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Dashboard.css';
-// ... [imports remain unchanged]
-// ... [imports remain unchanged]
 
 const Dashboard = () => {
     const [products, setProducts] = useState([]);
@@ -20,12 +18,14 @@ const Dashboard = () => {
         points_value: 0
     });
     const [convertingPoints, _setConvertingPoints] = useState(false);
-    // Simplified tracking of recent rewards activity
+    
     const [recentRewards, setRecentRewards] = useState({
         hasRecent: false,
         amount: 0,
     });
     const navigate = useNavigate();
+
+    const API_BASE_URL = 'http://localhost:8000';
 
     useEffect(() => {
         console.log("Dashboard mounted.");
@@ -43,7 +43,7 @@ const Dashboard = () => {
 
     const fetchProducts = async () => {
         try {
-            const response = await axios.get('http://localhost:8000/products');
+            const response = await axios.get(`${API_BASE_URL}/api/product`);
             console.log("Products fetched:", response.data);
             setAllProducts(response.data);
             setProducts(response.data);
@@ -74,15 +74,15 @@ const Dashboard = () => {
             // Set the authorization header for all requests
             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-            const userResponse = await axios.get('http://localhost:8000/user/me');
+            const userResponse = await axios.get(`${API_BASE_URL}/api/user/me`);
             console.log("User data:", userResponse.data);
             setUser(userResponse.data);
 
-            const balanceResponse = await axios.get('http://localhost:8000/user/balance');
+            const balanceResponse = await axios.get(`${API_BASE_URL}/api/user/balance`);
             console.log("Balance data:", balanceResponse.data);
             setBalance(balanceResponse.data.balance);
 
-            const cartResponse = await axios.get('http://localhost:8000/api/cart', {
+            const cartResponse = await axios.get(`${API_BASE_URL}/api/cart`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             console.log("Cart data:", cartResponse.data);
@@ -101,7 +101,7 @@ const Dashboard = () => {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await axios.get('http://localhost:8000/api/account/rewards', {
+            const response = await axios.get(`${API_BASE_URL}/api/account/rewards`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -170,7 +170,7 @@ const Dashboard = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.post('http://localhost:8000/api/cart/add', 
+            const response = await axios.post(`${API_BASE_URL}/api/cart`, 
                 { product_id: productId, quantity: 1 },
                 {
                     headers: { Authorization: `Bearer ${token}` }

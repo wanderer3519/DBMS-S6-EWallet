@@ -12,6 +12,8 @@ const Orders = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const API_BASE_URL = 'http://localhost:8000';
+
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -22,7 +24,7 @@ const Orders = () => {
           return;
         }
 
-        const response = await axios.get('http://localhost:8000/api/orders', {
+        const response = await axios.get(`${API_BASE_URL}/api/order`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -55,8 +57,9 @@ const Orders = () => {
     try {
       const token = localStorage.getItem('token');
       
+      // NOTE: no refund API. Hence using cancel API
       const response = await axios.post(
-        `http://localhost:8000/api/orders/${orderId}/refund`,
+        `${API_BASE_URL}/api/order/${orderId}/cancel`,
         {},
         {
           headers: {
@@ -72,8 +75,9 @@ const Orders = () => {
         text: `Order #${orderId} has been cancelled and refunded. ₹${response.data.refund_amount} has been credited to your wallet.`
       });
       
-      // Refresh the orders list
-      const updatedOrders = await axios.get('http://localhost:8000/api/orders', {
+      // No API as such: Added a new API 
+      // in  backend: routers/order.py
+      const updatedOrders = await axios.get(`${API_BASE_URL}/api/order`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

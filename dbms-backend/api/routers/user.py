@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from api.auth_lib import get_current_user
+from api.auth_lib import get_current_user, get_password_hash, verify_password
 from api.database import get_db
 from api.models import Account, Users
-from api.schemas import UserProfileResponse
+from api.schemas import PasswordUpdate, UserProfileResponse
 
 router = APIRouter(prefix="/api/user", tags=["User"])
 
@@ -70,3 +70,22 @@ def get_user_balance(
         return {"balance": float(account.balance)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.put("/password")
+def change_password(
+    password_update: PasswordUpdate,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(
+        password_update.current_password, current_user.password_hash
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect",
+        )
+
+    current_user.password_hash = get_password_hash(password_update.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}

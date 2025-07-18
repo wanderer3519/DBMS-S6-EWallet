@@ -22,6 +22,8 @@ const Checkout = () => {
     const [rewardDiscount, setRewardDiscount] = useState(0);
     const [walletDiscount, setWalletDiscount] = useState(0);
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     useEffect(() => {
         fetchCartItems();
         fetchWalletBalance();
@@ -69,7 +71,7 @@ const Checkout = () => {
             }
 
             console.log('Fetching cart items in Checkout component...');
-            const response = await axios.get('http://localhost:8000/api/cart', {
+            const response = await axios.get(`${API_BASE_URL}/api/cart`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -95,7 +97,7 @@ const Checkout = () => {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await axios.get('http://localhost:8000/user/balance', {
+            const response = await axios.get(`${API_BASE_URL}/api/user/balance`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -112,7 +114,7 @@ const Checkout = () => {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const response = await axios.get('http://localhost:8000/api/account/rewards', {
+            const response = await axios.get(`${API_BASE_URL}/api/account/rewards`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -214,7 +216,7 @@ const Checkout = () => {
             
             console.log('Checkout data:', checkoutData);
             
-            const response = await axios.post('http://localhost:8000/api/checkout', checkoutData, {
+            const response = await axios.post(`${API_BASE_URL}/api/checkout`, checkoutData, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json'

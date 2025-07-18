@@ -18,10 +18,12 @@ const Products = () => {
         fetchProducts();
     }, []);
 
+    const API_BASE_URL = 'http://localhost:8000';
+
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            const response = await axios.get('http://localhost:8000/products');
+            const response = await axios.get(`${API_BASE_URL}/api/product`);
             
             // Process products to ensure all fields are available
             const processedProducts = response.data.map(product => ({
@@ -58,11 +60,11 @@ const Products = () => {
             }
 
             const _response = await axios.post(
-                'http://localhost:8000/api/cart/add',
+                `${API_BASE_URL}/api/cart`,
                 { product_id: productId, quantity: 1 },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
+            
             setSuccess('Product added to cart successfully!');
             setTimeout(() => setSuccess(null), 3000);
         } catch (err) {

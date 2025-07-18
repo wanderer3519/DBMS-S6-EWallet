@@ -2,17 +2,17 @@ import React from "react";
 import axios from "axios";
 
 const Topup = () => {
-
+    const API_BASE_URL = 'http://localhost:8000'; 
     const [accId, setaccId] = React.useState(null);
     // const [_amount, setAmount] = React.useState(0);
 
     const fetchAccountId = async () => {
 
         try {
-            const userResponse = await axios.get('http://localhost:8000/user/me');
+            const userResponse = await axios.get(`${API_BASE_URL}/api/user/me`);
             const userId = userResponse.data.user_id;    
 
-            const accResponse = await axios.get(`http://localhost:8000/accounts/${userId}`);
+            const accResponse = await axios.get(`${API_BASE_URL}/api/account/user/${userId}`);
             const accountId = accResponse.data[0].account_id;
 
             setaccId(accountId);
@@ -28,7 +28,7 @@ const Topup = () => {
         e.preventDefault();
         
         // Call the API to top up the account
-        const response = await fetch(`http://localhost:8000/accounts/${accId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/accounts/${accId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
