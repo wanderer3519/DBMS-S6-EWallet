@@ -6,7 +6,7 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(null);
+  const [_token, setToken] = useState(null);
 
   useEffect(() => {
     const initializeAuth = async () => {

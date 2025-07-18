@@ -20,7 +20,7 @@ const MerchantProfile = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState([]);
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
 
   useEffect(() => {
     fetchMerchantProfile();

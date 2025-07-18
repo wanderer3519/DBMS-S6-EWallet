@@ -3,24 +3,26 @@
 ### To Run the app
 
 #### 1. Setup the backend and tables
-$ cd dbms-project
-$ python3 -m venv venv
-$ source venv/bin/activate
-$ pip install -r requirements.txt
-
-#### 2. Create a postgres server
-postgresql=# CREATE DATABASE e_wallet_db;
-
-#### 3. Add the server link to a .env file and generate a secret key
-
+``` bash []
+$ cd dbms-backend	        # navigate to backend
+$ python3 -m venv venv	    # create a venv
+$ source venv/bin/activate  # activate venv
+$ pip install poetry 	    # install poetry
+$ poetry install --no-root  # install all packages
+```
 
 #### 4. Run the backend server
-$ uvicorn main:app --reload
+``` bash []
+$ uvicorn api.main:app --reload # or just use
+$ make run
+```
 
 #### Set up the frontend
-$ cd ../dbms-frontend
-$ nvm use 22
-$ npm install (or npm i)
-$ npm start
+``` bash []
+$ cd dbms-frontend         # navigate to frontend
+$ npm install (or npm i)   # install all packages
+$ npm start		           # run frontend
+```
 
 #### App should be running by now
+- Open a browser and go to http://localhost/3000 to see the app.

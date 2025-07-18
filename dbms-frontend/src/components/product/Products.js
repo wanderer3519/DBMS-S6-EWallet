@@ -57,7 +57,7 @@ const Products = () => {
                 return;
             }
 
-            const response = await axios.post(
+            const _response = await axios.post(
                 'http://localhost:8000/api/cart/add',
                 { product_id: productId, quantity: 1 },
                 { headers: { Authorization: `Bearer ${token}` } }

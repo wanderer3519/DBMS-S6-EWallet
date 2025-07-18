@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import './Signup.css';
+import '../auth/Signup';
 
 const MerchantSignup = () => {
     const [formData, setFormData] = useState({
@@ -30,7 +30,7 @@ const MerchantSignup = () => {
         }
 
         try {
-            const { confirm_password, ...signupData } = formData;
+            const { _confirm_password, ...signupData } = formData;
 
             const response = await axios.post('http://localhost:8000/merchant/signup', signupData);
             localStorage.setItem('token', response.data.access_token);

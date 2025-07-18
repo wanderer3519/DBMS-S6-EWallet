@@ -17,7 +17,7 @@ const Checkout = () => {
     const [useWallet, setUseWallet] = useState(false);
     const [useRewards, setUseRewards] = useState(false);
     const [pointsToUse, setPointsToUse] = useState(0);
-    const [estimatedRewardPoints, setEstimatedRewardPoints] = useState(0);
+    const [_estimatedRewardPoints, setEstimatedRewardPoints] = useState(0);
     const [finalAmount, setFinalAmount] = useState(0);
     const [rewardDiscount, setRewardDiscount] = useState(0);
     const [walletDiscount, setWalletDiscount] = useState(0);

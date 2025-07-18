@@ -14,7 +14,7 @@ const MerchantDashboard = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [categories, setCategories] = useState([]);
   const [merchantProfile, setMerchantProfile] = useState(null);
-  const [showProfile, setShowProfile] = useState(false);
+  const [showProfile, _setShowProfile] = useState(false);
   const [productDetails, setProductDetails] = useState({});
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState([]);
@@ -126,7 +126,7 @@ const MerchantDashboard = () => {
   const fetchMerchantProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const user = JSON.parse(localStorage.getItem('user'));
+      const _user = JSON.parse(localStorage.getItem('user'));
       
       const response = await axios.get(`http://localhost:8000/api/merchant/profile`, {
         headers: { 
@@ -217,16 +217,6 @@ const MerchantDashboard = () => {
     }
   };
 
-  // Function to get product details (either from cache or fetch from API)
-  const getProductDetails = async (productId) => {
-    // If we already have the details, return them
-    if (productDetails[productId]) {
-      return productDetails[productId];
-    }
-    
-    // Otherwise fetch them
-    return await fetchProductDetails(productId);
-  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -516,34 +506,7 @@ const MerchantDashboard = () => {
   };
 
   // Add a new function to handle product ID input
-  const handleProductIdInput = async (e) => {
-    const productId = e.target.value;
-    if (!productId) return;
-    
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:8000/api/products/${productId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.data) {
-        setSelectedProduct(response.data);
-        setUpdateProduct({
-          product_name: response.data.name,
-          business_category: response.data.business_category,
-          price: response.data.price,
-          mrp: response.data.mrp,
-          stock: response.data.stock,
-          description: response.data.description
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      alert('Product not found. Please check the ID and try again.');
-    }
-  };
+  
 
   const fetchMerchantLogs = async () => {
     try {
@@ -591,11 +554,6 @@ const MerchantDashboard = () => {
     setShowAddProductForm(!showAddProductForm);
   };
 
-  const handleProductClick = async (productId) => {
-    // Fetch product details before navigating
-    await getProductDetails(productId);
-    navigate(`/product/${productId}`);
-  };
 
   const calculateDiscount = (mrp, price) => {
     if (!mrp || !price) return 0;

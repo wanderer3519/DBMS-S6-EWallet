@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Table, Card, Row, Col, Form, Nav, Tab, Badge, Alert, Spinner } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminDashboard = () => {
     const [logs, setLogs] = useState([]);
@@ -19,7 +19,7 @@ const AdminDashboard = () => {
     const [dateFilter, setDateFilter] = useState('');
     const [activeTab, setActiveTab] = useState('overview');
     const navigate = useNavigate();
-    const { user, isAdmin } = useAuth();
+    const { user, _isAdmin } = useAuth();
 
     useEffect(() => {
         console.log('Admin Dashboard: Current user:', user);

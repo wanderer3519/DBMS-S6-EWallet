@@ -160,6 +160,8 @@ const MyOrders = () => {
             case 'lowest':
                 result.sort((a, b) => parseFloat(a.total_amount || 0) - parseFloat(b.total_amount || 0));
                 break;
+            default:
+                break;        
         }
 
         setFilteredOrders(result);

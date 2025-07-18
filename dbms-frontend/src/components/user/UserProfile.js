@@ -602,7 +602,8 @@ const UserProfile = () => {
                     
                     <div className="wallet-history">
                         <p className="wallet-info">
-                            To view your transaction history and manage your wallet, please visit the <a href="#" onClick={() => navigate('/wallet')}>Wallet page</a>.
+                            To view your transaction history and manage your wallet, please visit the 
+                            <button onClick={() => navigate('/wallet')}>Wallet page</button>.
                         </p>
                     </div>
                 </div>

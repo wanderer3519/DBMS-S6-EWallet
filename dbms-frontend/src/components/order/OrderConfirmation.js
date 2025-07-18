@@ -8,7 +8,7 @@ const OrderConfirmation = () => {
     const navigate = useNavigate();
     const [orderDetails, setOrderDetails] = useState(null);
     const [orderDate, setOrderDate] = useState(null);
-    const [readableOrderDate, setReadableOrderDate] = useState(null);
+    const [_readableOrderDate, setReadableOrderDate] = useState(null);
     const [storedPaymentMethod, setStoredPaymentMethod] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

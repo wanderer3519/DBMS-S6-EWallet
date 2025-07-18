@@ -14,13 +14,12 @@ const Dashboard = () => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [categories, setCategories] = useState([]);
     const [balance, setBalance] = useState(null);
-    const [showBalance, setShowBalance] = useState(false);
-    const [cartItemCount, setCartItemCount] = useState(0);
+    const [_cartItemCount, setCartItemCount] = useState(0);
     const [rewardPoints, setRewardPoints] = useState({
         total_points: 0,
         points_value: 0
     });
-    const [convertingPoints, setConvertingPoints] = useState(false);
+    const [convertingPoints, _setConvertingPoints] = useState(false);
     // Simplified tracking of recent rewards activity
     const [recentRewards, setRecentRewards] = useState({
         hasRecent: false,
@@ -196,14 +195,6 @@ const Dashboard = () => {
         } else {
             setProducts(allProducts.filter(product => product.business_category === category));
         }
-    };
-
-    const handleCheckBalance = () => {
-        setShowBalance(prev => !prev);
-    };
-
-    const handleViewCart = () => {
-        navigate('/cart');
     };
 
     if (loading) return <div className="loading">Loading products...</div>;

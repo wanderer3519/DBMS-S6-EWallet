@@ -4,7 +4,7 @@ import axios from "axios";
 const Topup = () => {
 
     const [accId, setaccId] = React.useState(null);
-    const [amount, setAmount] = React.useState(0);
+    // const [_amount, setAmount] = React.useState(0);
 
     const fetchAccountId = async () => {
 

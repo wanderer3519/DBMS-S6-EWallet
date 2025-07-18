@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Form, Button, Alert, Card } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
@@ -9,7 +9,7 @@ const AdminLogin = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { adminLogin, user, isAdmin } = useAuth();
+  const { adminLogin, user, _isAdmin } = useAuth();
 
   // Check if already logged in as admin
   useEffect(() => {

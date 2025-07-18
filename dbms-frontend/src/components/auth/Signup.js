@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import authService from '../api/auth';
+import authService from '../../api/auth';
 import './Signup.css';
 
 const Signup = () => {
@@ -30,7 +30,7 @@ const Signup = () => {
         }
 
         try {
-            const { confirm_password, ...signupData } = formData;
+            const { _confirm_password, ...signupData } = formData;
             await authService.signup(signupData);
             navigate('/login', { state: { message: 'Account created successfully! Please login.' } });
         } catch (err) {
