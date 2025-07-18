@@ -5,7 +5,7 @@ import './Wallet.css';
 const Wallet = () => {
     const [balance, setBalance] = useState(0);
     const [rewards, setRewards] = useState({ total_points: 0, points_value: 0 });
-    const [loading, setLoading] = useState(false);
+    const [_loading, _setLoading] = useState(false);
     const [error, setError] = useState('');
     const [recentConversions, setRecentConversions] = useState([]);
     

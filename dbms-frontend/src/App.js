@@ -6,7 +6,7 @@ import Signup from './components/auth/Signup';
 import Dashboard from './components/user/Dashboard';
 import Products from './components/product/Products';
 import Cart from './components/cart/Cart';
-import Checkout from './components/checkout/Checkout';
+import Checkout from './components/cart/Checkout';
 import OrderConfirmation from './components/order/OrderConfirmation';
 import MyOrders from './components/user/MyOrders';
 import MerchantDashboard from './components/merchant/MerchantDashboard';
