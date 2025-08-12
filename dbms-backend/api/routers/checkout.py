@@ -38,7 +38,7 @@ def process_checkout(
     db: Session = Depends(get_db),
 ):
     try:
-        # Get user's cart
+        # Get user's cart(Finds the cart belonging to the logged-in user.)
         cart = db.query(Cart).filter(Cart.user_id == current_user.user_id).first()
         if not cart:
             raise HTTPException(status_code=404, detail="Cart not found")
@@ -71,7 +71,7 @@ def process_checkout(
             total += item_total
             order_items.append((product, item.quantity))
 
-        # Get user's account
+        # Get user's account(Retrieves the user’s wallet/account info)
         account = (
             db.query(Account).filter(Account.user_id == current_user.user_id).first()
         )
@@ -222,7 +222,7 @@ def process_checkout(
                 db.commit()
 
                 # Automatically convert reward points to wallet balance
-                #  convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
+                # convert_reward_points_to_wallet(current_user.user_id, earned_points, db)
 
         # Clear cart
         db.query(CartItem).filter(CartItem.cart_id == cart.cart_id).delete()

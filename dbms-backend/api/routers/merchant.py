@@ -20,6 +20,85 @@ from api.schemas import ProductResponse, Token, UserCreate, UserLogin, UserStatu
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/merchant", tags=["Merchant"])
 
+# Merchant Signup and Login
+@router.post("/signup", response_model=Token)
+def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
+    # Check if user already exists
+    db_user = db.query(Users).filter(Users.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    # Hash the password
+    hashed_password = get_password_hash(user.password)
+
+    try:
+        # Create new user
+        db_user = Users(
+            email=user.email,
+            full_name=user.full_name,
+            password_hash=hashed_password,
+            role=UserRole.merchant,
+            status=UserStatus.active,
+            phone=user.contact,  
+            created_at=datetime.now(),
+        )
+        db.add(db_user)
+        db.flush()  # Flush to get the user_id
+
+        # Create merchant profile with required fields
+        merchant = Merchants(
+            user_id=db_user.user_id,
+            merchant_id=db_user.user_id,  # Use user_id as merchant_id
+            business_name=user.full_name,  # Use full_name as business_name
+            business_category="General",  # Default category
+            name=user.full_name,
+            email=user.email,
+            contact=user.contact or "",  # Use contact from user input
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        db.add(merchant)
+        db.commit()
+        db.refresh(db_user)
+
+        # Create access token
+        access_token = create_access_token(data={"sub": user.email})
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating merchant: {str(e)}",
+        ) from e
+
+
+@router.post("/login", response_model=Token)
+def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
+    try:
+        users = db.query(Users).filter(Users.email == user_data.email).first()
+        if not users or users.role != UserRole.merchant:
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email or password",
+            )
+        if not verify_password(user_data.password, users.password_hash):
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email or password",
+            )
+        access_token = create_access_token(data={"sub": users.email})
+        return Token(
+            access_token=access_token, token_type="bearer", user_id=users.user_id
+        )
+    except Exception as e:
+        logger.info(f"Error during merchant login: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during login",
+        ) from e
+
+
 
 @router.get("/product/all", response_model=list[ProductResponse])
 def get_merchant_products(
@@ -283,86 +362,6 @@ def delete_product(
     db.delete(product)
     db.commit()
     return {"message": "Product deleted successfully"}
-
-
-# Merchant Signup and Login
-@router.post("/signup", response_model=Token)
-def merchant_signup(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists
-    db_user = db.query(Users).filter(Users.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    # Hash the password
-    hashed_password = get_password_hash(user.password)
-
-    try:
-        # Create new user
-        db_user = Users(
-            email=user.email,
-            full_name=user.full_name,
-            password_hash=hashed_password,
-            role=UserRole.merchant,
-            status=UserStatus.active,
-            phone=user.contact,  # Store contact as phone
-            created_at=datetime.now(),
-        )
-        db.add(db_user)
-        db.flush()  # Flush to get the user_id
-
-        # Create merchant profile with required fields
-        merchant = Merchants(
-            user_id=db_user.user_id,
-            merchant_id=db_user.user_id,  # Use user_id as merchant_id
-            business_name=user.full_name,  # Use full_name as business_name
-            business_category="General",  # Default category
-            name=user.full_name,
-            email=user.email,
-            contact=user.contact or "",  # Use contact from user input
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-        )
-        db.add(merchant)
-        db.commit()
-        db.refresh(db_user)
-
-        # Create access token
-        access_token = create_access_token(data={"sub": user.email})
-        return {"access_token": access_token, "token_type": "bearer"}
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error creating merchant: {str(e)}",
-        ) from e
-
-
-@router.post("/login", response_model=Token)
-def merchant_login(user_data: UserLogin, db: Session = Depends(get_db)):
-    try:
-        users = db.query(Users).filter(Users.email == user_data.email).first()
-        if not users or users.role != UserRole.merchant:
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect email or password",
-            )
-        if not verify_password(user_data.password, users.password_hash):
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect email or password",
-            )
-        access_token = create_access_token(data={"sub": users.email})
-        return Token(
-            access_token=access_token, token_type="bearer", user_id=users.user_id
-        )
-    except Exception as e:
-        logger.info(f"Error during merchant login: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="An error occurred during login",
-        ) from e
-
 
 # Merchant Product Management
 @router.get("/{merchant_id}/logs")

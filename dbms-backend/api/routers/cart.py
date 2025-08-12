@@ -160,7 +160,7 @@ def remove_from_cart(
         # Log cart update
         log = Logs(
             user_id=current_user.user_id,
-            action="cart_update",
+            action="cart_updated",
             description=f"User {current_user.user_id} removed product {product_id} from cart",
             created_at=datetime.now(),
         )

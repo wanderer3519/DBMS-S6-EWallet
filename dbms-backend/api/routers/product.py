@@ -106,93 +106,14 @@ def upload_product_image(
 
 @router.get("/featured", response_model=list[ProductResponse])
 def get_featured_products(db: Session = Depends(get_db)):
-    try:
-        # Get products with discount (where price < mrp)
-        featured_products = (
-            db.query(Product)
-            .filter(
-                Product.price < Product.mrp,
-                Product.status == ProductStatus.active,
-                Product.stock > 0,
-            )
-            .order_by(Product.mrp - Product.price)
-            .limit(10)
-            .all()
-        )
-        if featured_products:
-            return featured_products
-        else:
-            # If no featured products found, return some sample products
-            # This is temporary for frontend testing
-            sample_products = [
-                {
-                    "product_id": 1,
-                    "name": "Smartphone X",
-                    "description": "Latest smartphone with amazing features",
-                    "price": 799.99,
-                    "mrp": 999.99,
-                    "stock": 10,
-                    "image_url": "https://via.placeholder.com/300",
-                    "status": ProductStatus.active,
-                },
-                {
-                    "product_id": 2,
-                    "name": "Wireless Earbuds",
-                    "description": "High quality sound with noise cancellation",
-                    "price": 129.99,
-                    "mrp": 149.99,
-                    "stock": 15,
-                    "image_url": "https://via.placeholder.com/300",
-                    "status": ProductStatus.active,
-                },
-                {
-                    "product_id": 3,
-                    "name": "Smart Watch",
-                    "description": "Track your fitness and stay connected",
-                    "price": 249.99,
-                    "mrp": 299.99,
-                    "stock": 5,
-                    "image_url": "https://via.placeholder.com/300",
-                    "status": ProductStatus.active,
-                },
-            ]
-            return sample_products
-    except Exception as e:
-        logger.info(f"Error fetching featured products: {e}")
-        # Return sample products for frontend testing
-        sample_products = [
-            {
-                "product_id": 1,
-                "name": "Smartphone X",
-                "description": "Latest smartphone with amazing features",
-                "price": 799.99,
-                "mrp": 999.99,
-                "stock": 10,
-                "image_url": "https://via.placeholder.com/300",
-                "status": ProductStatus.active,
-            },
-            {
-                "product_id": 2,
-                "name": "Wireless Earbuds",
-                "description": "High quality sound with noise cancellation",
-                "price": 129.99,
-                "mrp": 149.99,
-                "stock": 15,
-                "image_url": "https://via.placeholder.com/300",
-                "status": ProductStatus.active,
-            },
-            {
-                "product_id": 3,
-                "name": "Smart Watch",
-                "description": "Track your fitness and stay connected",
-                "price": 249.99,
-                "mrp": 299.99,
-                "stock": 5,
-                "image_url": "https://via.placeholder.com/300",
-                "status": ProductStatus.active,
-            },
-        ]
-        return sample_products
+    return (
+        get_active_products_query(db)
+        .filter(Product.price < Product.mrp, Product.stock > 0)
+        .order_by(Product.mrp - Product.price)
+        .limit(10)
+        .all()
+    )
+
 
 
 @router.get("/category/{category}", response_model=list[ProductResponse])

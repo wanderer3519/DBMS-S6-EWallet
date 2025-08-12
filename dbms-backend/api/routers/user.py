@@ -30,7 +30,7 @@ def get_user_profile(user_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/me", response_model=dict)
+@router.get("/profile", response_model=dict)
 def get_current_user_info(
     current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
 ):
@@ -57,8 +57,7 @@ def get_current_user_info(
 
 @router.get("/balance", response_model=dict)
 def get_user_balance(
-    current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)
-):
+    current_user: Users = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         # Get user's account
         account = (

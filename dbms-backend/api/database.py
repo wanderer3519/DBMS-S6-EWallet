@@ -12,6 +12,11 @@ load_dotenv()
 
 # Get database URL from environment variables
 DATABASE_URL = "sqlite:///test.db"
+# Examples:
+# DATABASE_URL=postgresql://username:password@localhost:5432/mydatabase
+# DATABASE_URL=postgresql://postgres:yourpassword@db.yourprojectid.supabase.co:5432/postgres
+# DATABASE_URL=mysql+pymysql://username:password@localhost:3306/mydatabase
+# DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 # Create SQLAlchemy engine with connection testing

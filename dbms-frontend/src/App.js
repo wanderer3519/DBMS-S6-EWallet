@@ -61,7 +61,7 @@ const PrivateRoute = ({ children, roles }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router> 
         <Navbar />
         <Container className="mt-4">
           <Routes>

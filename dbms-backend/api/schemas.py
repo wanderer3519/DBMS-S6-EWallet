@@ -158,7 +158,8 @@ class UserProfileResponse(BaseModel):
 class UserUpdate(BaseModel):
     full_name: str | None = None
     email: EmailStr | None = None
-
+    phone: str | None = None
+    profile_image: str | None = None
 
 # Password Update Schema
 class PasswordUpdate(BaseModel):

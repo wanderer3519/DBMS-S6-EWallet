@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from sqlalchemy import func
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -121,7 +122,7 @@ def update_profile(
     db: Session = Depends(get_db),
 ):
     try:
-        # Update user profile fields
+        # Update only provided fields
         for field, value in profile_update.dict(exclude_unset=True).items():
             setattr(current_user, field, value)
 
@@ -138,21 +139,16 @@ def update_profile(
         db.add(log)
         db.commit()
 
-        # Get user accounts
-        accounts = (
-            db.query(Account).filter(Account.user_id == current_user.user_id).all()
+        # Load related accounts
+        accounts = db.query(Account).filter(
+            Account.user_id == current_user.user_id
+        ).all()
+
+        # Return Pydantic model directly from ORM object
+        return UserProfileResponse.from_orm(current_user).copy(
+            update={"accounts": accounts}
         )
 
-        return {
-            "user_id": current_user.user_id,
-            "full_name": current_user.full_name,
-            "email": current_user.email,
-            "role": current_user.role,
-            "status": current_user.status,
-            "created_at": current_user.created_at,
-            "profile_image": current_user.profile_image,
-            "accounts": accounts,
-        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -307,7 +303,7 @@ def redeem_rewards_path(
         # Create transaction for reward redemption
         transaction = Transactions(
             account_id=account.account_id,
-            amount=float(reward_value),  # Convert Decimal to float for storage
+            amount=float(reward_value),  
             transaction_type=TransactionType.reward_redemption,
             status=TransactionStatus.completed,
             created_at=datetime.now(),

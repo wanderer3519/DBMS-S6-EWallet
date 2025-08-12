@@ -154,6 +154,8 @@ const Checkout = () => {
             }
         }
     };
+
+    // Note: uses strict digits only; you may want to handle pasted values or thousand separators
     
     // Handle the "Use Max Points" button
     const handleUseMaxPoints = () => {
@@ -258,7 +260,7 @@ const Checkout = () => {
                         cartItems.map((item) => (
                             <div key={item.cart_item_id} className="checkout-item">
                                 <img 
-                                    src={item.image_url || 'https://via.placeholder.com/100'} 
+                                    src={item.image_url || 'https://www.google.com/imgres?imgurl=https://media.istockphoto.com/id/1457277458/vector/3d-vector-set-of-beach-and-sea-summer-journey-time-to-travel-concept.jpg?s%3D612x612%26w%3D0%26k%3D20%26c%3D_-Oh8HAyDXolIM6WCfSsWEF1-gLUdJyocmG9-pXXikc%3D&tbnid=ZroBtNxJK8KRhM&vet=1&imgrefurl=https://www.istockphoto.com/photos/thing&docid=xguLuRnyc1ImEM&w=612&h=612&source=sh/x/im/m5/1&kgs=86f556a28863942d&shem=isst'} 
                                     alt={item.name} 
                                     className="checkout-item-image" 
                                 />
