@@ -209,12 +209,3 @@ class OrderItem(Base):
     quantity = Column(Integer)
     price_at_time = Column(DECIMAL(10, 2))
     created_at = Column(TIMESTAMP)
-
-
-# # Database connection
-# DATABASE_URL = "postgresql://postgres:postgres@localhost/dbms-testing-1"
-
-# engine = create_engine(DATABASE_URL)
-# Base.metadata.create_all(engine)
-
-# logger.info("Database tables created successfully!")
