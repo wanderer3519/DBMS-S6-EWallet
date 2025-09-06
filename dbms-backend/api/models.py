@@ -3,14 +3,13 @@ import enum
 from sqlalchemy import (
     DECIMAL,
     TIMESTAMP,
-    Column,
     Enum,
     ForeignKey,
     Integer,
     String,
     Text,
 )
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -78,134 +77,183 @@ class OrderStatus(enum.Enum):
 # Tables
 class Users(Base):
     __tablename__ = "users"
-    user_id = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String)
-    full_name = Column(String)
-    role = Column(Enum(UserRole))
-    status = Column(Enum(UserStatus))
-    phone = Column(String(12), nullable=True)
-    created_at = Column(TIMESTAMP)
-    password_hash = Column(String)
-    profile_image = Column(String(255), nullable=True)
+
+    user_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    full_name: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
+    status: Mapped[UserStatus] = mapped_column(
+        Enum(UserStatus), default=UserStatus.active
+    )
+    phone: Mapped[str | None] = mapped_column(String(12))
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    profile_image: Mapped[str | None] = mapped_column(String(255))
 
 
 class Account(Base):
     __tablename__ = "account"
-    account_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    account_type = Column(Enum(AccountType))
-    balance = Column(DECIMAL(10, 2))
-    created_at = Column(TIMESTAMP)
+
+    account_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    account_type: Mapped[AccountType] = mapped_column(Enum(AccountType), nullable=False)
+    balance: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Transactions(Base):
     __tablename__ = "transactions"
-    transaction_id = Column(Integer, primary_key=True, autoincrement=True)
-    account_id = Column(Integer, ForeignKey("account.account_id"))
-    amount = Column(DECIMAL(10, 2))
-    transaction_type = Column(Enum(TransactionType))
-    status = Column(Enum(TransactionStatus))
-    created_at = Column(TIMESTAMP)
+
+    transaction_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("account.account_id"), nullable=False
+    )
+    amount: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    transaction_type: Mapped[TransactionType] = mapped_column(
+        Enum(TransactionType), nullable=False
+    )
+    status: Mapped[TransactionStatus] = mapped_column(
+        Enum(TransactionStatus), default=TransactionStatus.pending
+    )
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Refunds(Base):
     __tablename__ = "refunds"
-    refund_id = Column(Integer, primary_key=True, autoincrement=True)
-    transaction_id = Column(Integer, ForeignKey("transactions.transaction_id"))
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    amount = Column(DECIMAL(10, 2))
-    status = Column(Enum(RefundStatus))
-    created_at = Column(TIMESTAMP)
+
+    refund_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("transactions.transaction_id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    amount: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    status: Mapped[RefundStatus] = mapped_column(Enum(RefundStatus), nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Logs(Base):
     __tablename__ = "logs"
-    log_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    action = Column(String)
-    description = Column(String)
-    created_at = Column(TIMESTAMP)
+
+    log_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    action: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class RewardPoints(Base):
     __tablename__ = "reward_points"
-    reward_id = Column(Integer, primary_key=True, autoincrement=True)
-    transaction_id = Column(Integer, ForeignKey("transactions.transaction_id"))
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    points = Column(Integer)
-    status = Column(Enum(RewardStatus))
-    created_at = Column(TIMESTAMP)
+
+    reward_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    transaction_id: Mapped[int] = mapped_column(
+        ForeignKey("transactions.transaction_id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    points: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[RewardStatus] = mapped_column(Enum(RewardStatus), nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Merchants(Base):
     __tablename__ = "merchants"
 
-    merchant_id = Column(Integer, autoincrement=True, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    business_name = Column(String)
-    business_category = Column(String)
-    created_at = Column(TIMESTAMP)
-    name = Column(String(100))
-    email = Column(String(100))
-    contact = Column(String(12))
-    updated_at = Column(TIMESTAMP)
-
-    # __table_args__ = (PrimaryKeyConstraint("merchant_id", "business_category"),)
+    merchant_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    business_name: Mapped[str] = mapped_column(String, nullable=False)
+    business_category: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[str] = mapped_column(String(100), nullable=False)
+    contact: Mapped[str] = mapped_column(String(12), nullable=False)
+    updated_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Product(Base):
     __tablename__ = "products"
-    product_id = Column(Integer, primary_key=True, autoincrement=True)
-    merchant_id = Column(Integer, ForeignKey("merchants.merchant_id"))
-    name = Column(String(100))
-    description = Column(Text)
-    price = Column(DECIMAL(10, 2))
-    mrp = Column(DECIMAL(10, 2))
-    stock = Column(Integer)
-    business_category = Column(String(50))
-    image_url = Column(String(255))
-    status = Column(Enum(ProductStatus), default=ProductStatus.active)
-    created_at = Column(TIMESTAMP)
-    updated_at = Column(TIMESTAMP)
+
+    product_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    merchant_id: Mapped[int] = mapped_column(
+        ForeignKey("merchants.merchant_id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    price: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    mrp: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    stock: Mapped[int] = mapped_column(Integer, nullable=False)
+    business_category: Mapped[str] = mapped_column(String(50), nullable=False)
+    image_url: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[ProductStatus] = mapped_column(
+        Enum(ProductStatus), default=ProductStatus.active
+    )
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
+    updated_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Cart(Base):
     __tablename__ = "cart"
-    cart_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    created_at = Column(TIMESTAMP)
-    updated_at = Column(TIMESTAMP)
+
+    cart_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
+    updated_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class CartItem(Base):
     __tablename__ = "cart_items"
-    cart_item_id = Column(Integer, primary_key=True, autoincrement=True)
-    cart_id = Column(Integer, ForeignKey("cart.cart_id"))
-    product_id = Column(Integer, ForeignKey("products.product_id"))
-    quantity = Column(Integer)
-    created_at = Column(TIMESTAMP)
-    updated_at = Column(TIMESTAMP)
+
+    cart_item_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    cart_id: Mapped[int] = mapped_column(ForeignKey("cart.cart_id"), nullable=False)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.product_id"), nullable=False
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
+    updated_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Order(Base):
     __tablename__ = "orders"
-    order_id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    account_id = Column(Integer, ForeignKey("account.account_id"))
-    total_amount = Column(DECIMAL(10, 2))
-    status = Column(Enum(OrderStatus), default=OrderStatus.pending)
-    payment_method = Column(String(50), nullable=True)
-    wallet_amount = Column(DECIMAL(10, 2), default=0)
-    reward_discount = Column(DECIMAL(10, 2), default=0)
-    created_at = Column(TIMESTAMP)
-    updated_at = Column(TIMESTAMP)
+
+    order_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("account.account_id"), nullable=False
+    )
+    total_amount: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(
+        Enum(OrderStatus), default=OrderStatus.pending
+    )
+    payment_method: Mapped[str | None] = mapped_column(String(50))
+    wallet_amount: Mapped[float] = mapped_column(DECIMAL(10, 2), default=0)
+    reward_discount: Mapped[float] = mapped_column(DECIMAL(10, 2), default=0)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
+    updated_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class OrderItem(Base):
     __tablename__ = "order_items"
-    order_item_id = Column(Integer, primary_key=True, autoincrement=True)
-    order_id = Column(Integer, ForeignKey("orders.order_id"))
-    product_id = Column(Integer, ForeignKey("products.product_id"))
-    quantity = Column(Integer)
-    price_at_time = Column(DECIMAL(10, 2))
-    created_at = Column(TIMESTAMP)
+
+    order_item_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.order_id"), nullable=False)
+    product_id: Mapped[int] = mapped_column(
+        ForeignKey("products.product_id"), nullable=False
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_at_time: Mapped[float] = mapped_column(DECIMAL(10, 2), nullable=False)
+    created_at: Mapped[str] = mapped_column(TIMESTAMP, nullable=False)
