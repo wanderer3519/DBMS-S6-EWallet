@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Page from '../shared/Page';
 import './Checkout.css';
 
 const Checkout = () => {
@@ -247,12 +248,24 @@ const Checkout = () => {
         }
     };
 
-    if (loading) return <div className="checkout-loading">Loading your cart... Please wait.</div>;
-    if (error) return <div className="checkout-error">{error}</div>;
+    if (loading) return (
+        <Page title="Checkout" backButton={{ to: '/cart', label: 'Back to Cart' }}>
+            <div className="checkout-loading">Loading your cart... Please wait.</div>
+        </Page>
+    );
+    if (error) return (
+        <Page title="Checkout" backButton={{ to: '/cart', label: 'Back to Cart' }}>
+            <div className="checkout-error">{error}</div>
+        </Page>
+    );
 
     return (
+        <Page 
+            title="Checkout" 
+            subtitle={`${cartItems.length} item(s) • Total: ₹${total.toFixed(2)}`}
+            backButton={{ to: '/cart', label: 'Back to Cart' }}
+        >
         <div className="checkout-container">
-            <h1>🛒 Checkout</h1>
             <div className="checkout-content">
                 <div className="order-summary">
                     <h2>Order Summary</h2>
@@ -452,6 +465,7 @@ const Checkout = () => {
                 </div>
             </div>
         </div>
+        </Page>
     );
 };
 

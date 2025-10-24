@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from decimal import Decimal
 
 from api.database import get_db
-from api.models import Account, Transaction  # adjust import to match your models
+from api.models import Account, Transactions  # adjust import to match your models
 from datetime import datetime
 
 router = APIRouter(prefix="/api/process-withdrawal", tags=["Withdrawal"])
@@ -24,7 +24,7 @@ def process_withdrawal(account_id: int, amount: float, db: Session = Depends(get
         account.balance = Decimal(account.balance) - Decimal(amount)
 
         # 4. Record the withdrawal in transactions table
-        withdrawal = Transaction(
+        withdrawal = Transactions(
             account_id=account.account_id,
             type="withdrawal",
             amount=Decimal(amount),

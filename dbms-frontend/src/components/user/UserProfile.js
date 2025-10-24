@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Page from '../shared/Page';
 import './UserProfile.css';
 
 const UserProfile = () => {
@@ -317,10 +318,19 @@ const UserProfile = () => {
     };
 
     if (loading) {
-        return <div className="loading">Loading profile information...</div>;
+        return (
+            <Page title="My Profile" backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}>
+                <div className="loading">Loading profile information...</div>
+            </Page>
+        );
     }
 
     return (
+        <Page 
+            title="My Profile" 
+            subtitle={user?.email || ''}
+            backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}
+        >
         <div className="user-profile-container">
             {/* Profile Header */}
             <div className="profile-header">
@@ -371,11 +381,6 @@ const UserProfile = () => {
                 <div className="header-content">
                     <h1>{user?.full_name || 'User'}</h1>
                     <p className="user-email">{user?.email || 'Not available'}</p>
-                </div>
-                <div className="header-actions">
-                    <button className="back-btn" onClick={() => navigate('/dashboard')}>
-                        Back to Dashboard
-                    </button>
                 </div>
             </div>
 
@@ -613,6 +618,7 @@ const UserProfile = () => {
                 </div>
             )}
         </div>
+        </Page>
     );
 };
 

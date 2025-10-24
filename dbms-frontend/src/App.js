@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Container } from 'react-bootstrap';
-import Navbar from './routes/Navbar';
+import AppLayout from './layout/AppLayout';
+import { ThemeProvider } from './context/ThemeContext';
 import Login from './components/auth/Login';
 import Signup from './components/auth/Signup';
 import Dashboard from './components/user/Dashboard';
@@ -60,11 +60,11 @@ const PrivateRoute = ({ children, roles }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router> 
-        <Navbar />
-        <Container className="mt-4">
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
           <Routes>
+          <Route element={<AppLayout />}>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -149,10 +149,11 @@ function App() {
                 <AdminDashboard />
               </PrivateRoute>
             } />
+          </Route>
           </Routes>
-        </Container>
-      </Router>
-    </AuthProvider>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

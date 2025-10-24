@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import './Products.css';
+import Page from '../shared/Page';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -12,6 +13,7 @@ const Products = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [categories, setCategories] = useState([]);
+    const [categoryCounts, setCategoryCounts] = useState({});
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -40,6 +42,13 @@ const Products = () => {
             ))].sort();
             
             setCategories(uniqueCategories);
+            // Build counts per category
+            const counts = processedProducts.reduce((acc, p) => {
+                const cat = p.business_category || 'Uncategorized';
+                acc[cat] = (acc[cat] || 0) + 1;
+                return acc;
+            }, {});
+            setCategoryCounts(counts);
             setLoading(false);
         } catch (err) {
             console.error('Error fetching products:', err);
@@ -74,7 +83,7 @@ const Products = () => {
     };
 
     const handleProductClick = (productId) => {
-        navigate(`/product/${productId}`);
+        navigate(`/products/${productId}`);
     };
 
     const handleSearch = () => {
@@ -119,44 +128,64 @@ const Products = () => {
         return Math.round(((mrp - price) / mrp) * 100);
     };
 
-    if (loading) {
-        return <div className="products-loading">Loading products...</div>;
-    }
-
     return (
-        <div className="products-container">
-            <div className="products-header">
-                <h1>Product Catalog</h1>
-                <p>Browse our selection of products and add them to your cart</p>
-            </div>
+        <Page 
+            title="Product Catalog" 
+            subtitle="Browse our selection and add items to your cart"
+            icon="fas fa-store"
+            breadcrumbs={[
+                { label: 'Home', path: '/dashboard', icon: 'fas fa-home' },
+                { label: 'Products' }
+            ]}
+            stats={[
+                { 
+                    icon: '📦', 
+                    value: allProducts.length, 
+                    label: 'Total Products' 
+                },
+                { 
+                    icon: '🏷️', 
+                    value: categories.length, 
+                    label: 'Categories' 
+                },
+                { 
+                    icon: '🛍️', 
+                    value: products.length, 
+                    label: 'Showing' 
+                }
+            ]}
+        >
+            <div className="products-container">
 
-            <div className="search-filter-section">
-                <div className="search-bar">
+            <div className="products-toolbar">
+                <div className="products-actions">
                     <input
                         type="text"
-                        placeholder="Search products by name or description..."
+                        className="form-control"
+                        style={{ minWidth: 260 }}
+                        placeholder="Search products..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     />
-                    <button className="search-btn" onClick={handleSearch}>Search</button>
-                    <button className="reset-btn" onClick={handleResetSearch}>Reset</button>
+                    <button className="btn btn-primary" onClick={handleSearch}>Search</button>
+                    <button className="btn btn-outline-secondary" onClick={handleResetSearch}>Reset</button>
                 </div>
 
-                <div className="category-filters">
+                <div className="products-actions">
                     <button 
-                        className={`category-btn ${selectedCategory === 'all' ? 'active' : ''}`}
+                        className={`chip ${selectedCategory === 'all' ? 'active' : ''}`}
                         onClick={() => handleCategorySelect('all')}
                     >
-                        All Products
+                        All Products <span className="count">{allProducts.length}</span>
                     </button>
                     {categories.map(category => (
                         <button 
                             key={category}
-                            className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
+                            className={`chip ${selectedCategory === category ? 'active' : ''}`}
                             onClick={() => handleCategorySelect(category)}
                         >
-                            {category}
+                            {category} <span className="count">{categoryCounts[category] || 0}</span>
                         </button>
                     ))}
                 </div>
@@ -165,7 +194,20 @@ const Products = () => {
             {error && <div className="error-message">{error}</div>}
             {success && <div className="success-message">{success}</div>}
 
-            {products.length === 0 ? (
+            {loading ? (
+                <div className="products-grid">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                        <div key={idx} className="product-card skeleton-card">
+                            <div className="skeleton-image" />
+                            <div className="p-3">
+                                <div className="skeleton-line w-75 mb-2" />
+                                <div className="skeleton-line w-50 mb-3" />
+                                <div className="skeleton-line w-25" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : products.length === 0 ? (
                 <div className="no-products">
                     <p>No products found. Try a different search term or category.</p>
                 </div>
@@ -222,7 +264,8 @@ const Products = () => {
                     ))}
                 </div>
             )}
-        </div>
+            </div>
+        </Page>
     );
 };
 

@@ -1,13 +1,13 @@
 import logging
 
-from api.database import SessionLocal
+from api.database import session_local
 from api.models import Merchants, Product, Users
 
 logger = logging.getLogger(__name__)
 
 
 def check_products():
-    db = SessionLocal()
+    db = session_local()
     try:
         logger.info("\nChecking merchants...")
         merchants = db.query(Users).filter_by(role="merchant").all()

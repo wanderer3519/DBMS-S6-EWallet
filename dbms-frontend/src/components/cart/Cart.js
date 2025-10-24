@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Page from '../shared/Page';
 import './Cart.css';
 
 export const calculateTotal = (items) => {
@@ -130,33 +131,54 @@ const Cart = () => {
     };
 
     if (loading) {
-        return <div className="loading">Loading your cart...</div>;
+        return (
+            <Page 
+                title="Your Shopping Cart" 
+                icon="fas fa-shopping-cart"
+                backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}
+            >
+                <div className="loading">Loading your cart...</div>
+            </Page>
+        );
     }
 
     if (error) {
-        return <div className="error">{error}</div>;
+        return (
+            <Page 
+                title="Your Shopping Cart" 
+                icon="fas fa-shopping-cart"
+                backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}
+            >
+                <div className="alert alert-danger">{error}</div>
+            </Page>
+        );
     }
 
+    const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
     return (
-        <div className="cart-container">
-            <div className="cart-header">
-                <h1>Your Shopping Cart</h1>
-                <button
-                    className="back-to-dashboard"
-                    onClick={handleBackToDashboard}
-                >
-                    ← Back to Dashboard
-                </button>
-            </div>
+        <Page 
+            title="Your Shopping Cart" 
+            subtitle={cartItems.length > 0 ? `${cartItems.length} item(s) • Total: ₹${totalAmount.toFixed(2)}` : 'Your cart is empty'}
+            icon="fas fa-shopping-cart"
+            backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}
+            stats={cartItems.length > 0 ? [
+                { icon: '🛒', value: cartItems.length, label: 'Items' },
+                { icon: '💳', value: `₹${totalAmount.toFixed(2)}`, label: 'Total' }
+            ] : []}
+        >
+            <div className="cart-container">
 
             {cartItems.length === 0 ? (
-                <div className="empty-cart">
-                    <p>Your cart is empty</p>
+                <div className="empty-state">
+                    <div className="empty-state-icon">🛒</div>
+                    <h3 className="empty-state-title">Your cart is empty</h3>
+                    <p className="empty-state-message">Start shopping to add items to your cart</p>
                     <button
-                        className="continue-shopping"
+                        className="btn btn-primary"
                         onClick={() => navigate('/dashboard')}
                     >
-                        Continue Shopping
+                        <i className="fas fa-shopping-bag"></i> Continue Shopping
                     </button>
                 </div>
             ) : (
@@ -237,7 +259,8 @@ const Cart = () => {
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+        </Page>
     );
 };
 

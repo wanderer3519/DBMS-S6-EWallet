@@ -161,6 +161,7 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     profile_image: str | None = None
 
+
 # Password Update Schema
 class PasswordUpdate(BaseModel):
     current_password: str
@@ -176,3 +177,21 @@ class ProductUpdate(BaseModel):
     stock: int | None = None
     image_url: str | None = None
     status: ProductStatus | None = None
+
+
+# Dashboard Schemas
+class DashboardTransaction(BaseModel):
+    id: int
+    type: str
+    description: str
+    amount: float
+    date: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DashboardData(BaseModel):
+    user_info: UserProfileResponse
+    account_balance: float
+    recent_transactions: list[DashboardTransaction]
+    rewards_points: int

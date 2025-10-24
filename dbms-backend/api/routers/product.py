@@ -104,6 +104,11 @@ def upload_product_image(
     return {"url": f"/uploads/{filename}"}
 
 
+def get_active_products_query(db: Session):
+    """Helper function to get active products query"""
+    return db.query(Product).filter(Product.status == ProductStatus.active)
+
+
 @router.get("/featured", response_model=list[ProductResponse])
 def get_featured_products(db: Session = Depends(get_db)):
     return (

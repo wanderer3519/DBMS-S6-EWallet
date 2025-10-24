@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Page from '../shared/Page';
 import './Dashboard.css';
 
 const Dashboard = () => {

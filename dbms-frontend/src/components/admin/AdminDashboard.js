@@ -3,6 +3,7 @@ import { Container, Table, Card, Row, Col, Form, Nav, Tab, Badge, Alert, Spinner
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import Page from '../shared/Page';
 
 const AdminDashboard = () => {
     const [logs, setLogs] = useState([]);
@@ -198,7 +199,17 @@ const AdminDashboard = () => {
 
     return (
         <Container className="py-4">
-            <h2 className="mb-4">Admin Dashboard</h2>
+            <Page 
+                title="Admin Dashboard" 
+                subtitle="System overview, orders, and user activity"
+                icon="fas fa-shield-alt"
+                stats={[
+                    { icon: '👥', value: stats.totalUsers || 0, label: 'Total Users' },
+                    { icon: '📦', value: stats.totalOrders || 0, label: 'Total Orders' },
+                    { icon: '💰', value: `₹${(stats.totalRevenue || 0).toFixed(2)}`, label: 'Revenue' },
+                    { icon: '🏪', value: stats.activeMerchants || 0, label: 'Merchants' }
+                ]}
+            >
             
             {error && <Alert variant="danger">{error}</Alert>}
 
@@ -410,6 +421,7 @@ const AdminDashboard = () => {
                     </Col>
                 </Row>
             </Tab.Container>
+            </Page>
         </Container>
     );
 };

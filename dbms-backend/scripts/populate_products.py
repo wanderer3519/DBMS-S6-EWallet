@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from api.auth_lib import get_password_hash
-from api.database import engine
+from api.database import engine, session_local
 from api.models import Merchants, Product, ProductStatus, UserRole, Users, UserStatus
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,11 @@ def create_merchant_if_not_exists(db: Session):
                 user_id=merchant.user_id,
                 business_name="Sample Electronics Store",
                 business_category="Electronics",
+                name="Sample Merchant",
+                email=merchant_email,
+                contact="1234567890",
                 created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
             )
             db.add(merchant_profile)
             db.commit()
@@ -114,7 +118,7 @@ def create_merchant_if_not_exists(db: Session):
 
 
 def populate_products():
-    db = Session(engine)
+    db = session_local()
     try:
         logger.info("Starting product population...")
         # Create merchant

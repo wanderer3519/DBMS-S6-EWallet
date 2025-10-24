@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Page from '../shared/Page';
 import './MerchantDashboard.css';
 
 const MerchantDashboard = () => {
@@ -595,22 +596,35 @@ const MerchantDashboard = () => {
     }
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
-  if (error) return <div className="error">{error}</div>;
+  if (loading) return (
+    <Page title="Merchant Dashboard">
+      <div className="loading">Loading...</div>
+    </Page>
+  );
+  if (error) return (
+    <Page title="Merchant Dashboard">
+      <div className="error">{error}</div>
+    </Page>
+  );
+
+  const headerActions = (
+    <>
+      <button className="btn btn-outline-primary" onClick={() => navigate('/merchant/profile')}>
+        <i className="fas fa-user"></i> Profile
+      </button>
+      <button className="btn btn-outline-secondary" onClick={handleLogsClick}>
+        <i className="fas fa-history"></i> Activity Logs
+      </button>
+    </>
+  );
 
   return (
+    <Page 
+      title="Merchant Dashboard" 
+      subtitle={`${dashboardSummary.totalProducts} products • ${dashboardSummary.totalCategories} categories`}
+      actions={headerActions}
+    >
     <div className="merchant-dashboard">
-      <div className="dashboard-header d-flex justify-content-between align-items-center">
-        <h2><i className="fas fa-store"></i> Merchant Dashboard</h2>
-        <div className="header-actions">
-          <button className="btn btn-outline-primary" onClick={() => navigate('/merchant/profile')}>
-            <i className="fas fa-user"></i> Profile
-          </button>
-          <button className="btn btn-outline-secondary" onClick={handleLogsClick}>
-            <i className="fas fa-history"></i> Activity Logs
-          </button>
-        </div>
-      </div>
 
       {successMessage && (
         <div className="alert alert-success" role="alert">
@@ -984,6 +998,7 @@ const MerchantDashboard = () => {
         )}
       </div>
     </div>
+    </Page>
   );
 };
 

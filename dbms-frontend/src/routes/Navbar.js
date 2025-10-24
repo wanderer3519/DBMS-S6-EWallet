@@ -2,9 +2,11 @@ import React from 'react';
 import { Navbar as BootstrapNavbar, Nav, Container, Button, Dropdown } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -15,11 +17,11 @@ const Navbar = () => {
   return (
     <BootstrapNavbar bg="dark" variant="dark" expand="lg">
       <Container>
-        <BootstrapNavbar.Brand as={Link} to="/">E-Wallet</BootstrapNavbar.Brand>
+  <BootstrapNavbar.Brand as={Link} to="/products">E-Wallet</BootstrapNavbar.Brand>
         <BootstrapNavbar.Toggle aria-controls="basic-navbar-nav" />
         <BootstrapNavbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
-            <Nav.Link as={Link} to="/">Products</Nav.Link>
+            <Nav.Link as={Link} to="/products">Products</Nav.Link>
             {user && user.role === 'user' && (
               <Nav.Link as={Link} to="/cart">Cart</Nav.Link>
             )}
@@ -30,7 +32,10 @@ const Navbar = () => {
               <Nav.Link as={Link} to="/admin">Admin Dashboard</Nav.Link>
             )}
           </Nav>
-          <Nav>
+          <Nav className="align-items-center" style={{ gap: 12 }}>
+            <Button variant="outline-light" size="sm" onClick={toggleTheme} title="Toggle theme">
+              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </Button>
             {user ? (
               <>
                 <Nav.Link disabled>Welcome, {user.name}</Nav.Link>

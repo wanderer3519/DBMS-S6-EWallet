@@ -1,0 +1,28 @@
+.spending-chart-card {
+    padding: 24px;
+}
+
+.custom-tooltip {
+    background-color: rgba(32, 33, 36, 0.9);
+    border: 1px solid var(--border);
+    padding: 10px 15px;
+    border-radius: 8px;
+    color: #fff;
+    box-shadow: var(--shadow-lg);
+}
+
+.custom-tooltip .label {
+    font-weight: 600;
+    margin: 0 0 5px 0;
+    color: #e8eaed;
+}
+
+.custom-tooltip .intro {
+    margin: 0;
+    font-size: 14px;
+    color: #bdc1c6;
+}
+
+.recharts-surface {
+    overflow: visible;
+}

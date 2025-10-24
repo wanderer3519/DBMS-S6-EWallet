@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Page from '../shared/Page';
 import './MyOrders.css';
 import { Modal, Button } from 'react-bootstrap';
 
@@ -403,22 +404,24 @@ const MyOrders = () => {
         setCancelSuccess(null);
     };
 
-    if (loading) return <div className="orders-loading">Loading your orders...</div>;
-    if (error) return <div className="orders-error">{error}</div>;
+    if (loading) return (
+        <Page title="My Orders" backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}>
+            <div className="orders-loading">Loading your orders...</div>
+        </Page>
+    );
+    if (error) return (
+        <Page title="My Orders" backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}>
+            <div className="orders-error">{error}</div>
+        </Page>
+    );
 
     return (
+        <Page 
+            title="My Orders" 
+            subtitle={`${stats.totalOrders} total orders • ${formatCurrency(stats.totalSpent)} spent`}
+            backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}
+        >
         <div className="my-orders-container">
-            <div className="my-orders-header">
-                <h1>My Orders</h1>
-                <div className="orders-header-actions">
-                    <button 
-                        className="back-to-dashboard"
-                        onClick={() => navigate('/dashboard')}
-                    >
-                        ← Back to Dashboard
-                    </button>
-                </div>
-            </div>
 
             <div className="order-stats-container">
                 <div className="order-stat-card">
@@ -709,6 +712,7 @@ const MyOrders = () => {
                 )}
             </Modal>
         </div>
+        </Page>
     );
 };
 

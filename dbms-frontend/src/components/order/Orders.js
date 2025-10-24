@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Badge, Button, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Page from '../shared/Page';
 import './MyOrders.css'; // Import the CSS to maintain styling
 
 const Orders = () => {
@@ -107,19 +108,24 @@ const Orders = () => {
     return timeDiff <= 24 * 60 * 60 * 1000;
   };
 
-  if (loading) return <div className="orders-loading">Loading your orders...</div>;
-  if (error) return <div className="orders-error">{error}</div>;
+  if (loading) return (
+    <Page title="My Orders" backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}>
+      <div className="orders-loading">Loading your orders...</div>
+    </Page>
+  );
+  if (error) return (
+    <Page title="My Orders" backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}>
+      <div className="orders-error">{error}</div>
+    </Page>
+  );
 
   return (
+    <Page 
+      title="My Orders" 
+      subtitle={`${orders.length} order(s) placed`}
+      backButton={{ to: '/dashboard', label: 'Back to Dashboard' }}
+    >
     <div className="my-orders-container">
-      <div className="my-orders-header">
-        <h1>My Orders</h1>
-        <div className="orders-header-actions">
-          <button className="back-to-dashboard" onClick={() => navigate('/dashboard')}>
-            ← Back to Dashboard
-          </button>
-        </div>
-      </div>
       
       {refundMessage && (
         <Alert 
@@ -210,6 +216,7 @@ const Orders = () => {
         </div>
       )}
     </div>
+    </Page>
   );
 };
 

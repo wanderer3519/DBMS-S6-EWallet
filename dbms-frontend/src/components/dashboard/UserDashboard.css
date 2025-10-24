@@ -1,0 +1,9 @@
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+}
+
+.dashboard-grid > *:nth-child(3) {
+    grid-column: 1 / -1;
+}
